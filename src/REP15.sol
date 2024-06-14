@@ -189,7 +189,11 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   /**
    * @dev Overrides {ERC721-safeTransferFrom} with additional checks for REP15.
    */
-  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override(ERC721, IERC721) {
+  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
+    public
+    virtual
+    override(ERC721, IERC721)
+  {
     address operator = _msgSender();
 
     _checkAuthorizedOwnershipManager(tokenId, operator);

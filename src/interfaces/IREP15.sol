@@ -22,9 +22,9 @@ interface IREP15 is IERC165, IERC721 {
   event ContextLockUpdated(bytes32 indexed ctxHash, uint256 indexed tokenId, bool locked);
   /// @dev This emits when the ownership delegation is started by any mechanism.
   event OwnershipDelegationStarted(uint256 indexed tokenId, address indexed delegatee, uint64 until);
-  /// @dev This emits when the ownership delegation accepted by any mechanism.
+  /// @dev This emits when the ownership delegation is accepted by any mechanism.
   event OwnershipDelegationAccepted(uint256 indexed tokenId, address indexed delegatee, uint64 until);
-  /// @dev This emits when the ownership delegation stopped by any mechanism.
+  /// @dev This emits when the ownership delegation is stopped by any mechanism.
   event OwnershipDelegationStopped(uint256 indexed tokenId, address indexed delegatee);
 
   /// @notice Gets the longest duration the detaching can happen.
@@ -32,7 +32,7 @@ interface IREP15 is IERC165, IERC721 {
 
   /// @notice Gets controller address and detachment duration of a context.
   /// @dev MUST revert if the context is not existent.
-  /// @param ctxHash            An hash of context to query the controller.
+  /// @param ctxHash            A hash of context to query the controller.
   /// @return controller        The address of the context controller.
   /// @return detachingDuration The duration must be waited for detachment in second(s).
   /// @return deprecated        A flag that indicates whether the context is deprecated.
@@ -45,7 +45,7 @@ interface IREP15 is IERC165, IERC721 {
   /// @dev MUST revert if the context is already existent.
   /// MUST revert if the controller address is zero address.
   /// MUST revert if the detaching duration is larger than max detaching duration.
-  /// MUST emit the event {ContextUpdated} to reflex context created and controller set.
+  /// MUST emit the event {ContextUpdated} to reflect context created and controller set.
   /// @param controller        The address that controls the created context.
   /// @param detachingDuration The duration must be waited for detachment in second(s).
   /// @param ctxMsg            The message of new context.
@@ -72,18 +72,14 @@ interface IREP15 is IERC165, IERC721 {
   /// @param ctxHash Hash of the context to remove.
   function deprecateContext(bytes32 ctxHash) external;
 
-  /// @notice Queries if a token is attached with a certain context.
+  /// @notice Queries if a token is attached to a certain context.
   /// @param ctxHash Hash of a context.
   /// @param tokenId The NFT to query.
-  /// @return        True if the token is attached with the context, false if not.
+  /// @return        True if the token is attached to the context, false if not.
   function isAttachedWithContext(bytes32 ctxHash, uint256 tokenId) external view returns (bool);
 
   /// @notice Attaches a token with a certain context.
-  /// @dev MUST revert unless the method caller is the ownership manager, an authorized operator of ownership manager, or the approved address for this NFT (if the token is not being delegated).
-  /// MUST revert if the context is non-existent or deprecated.
-  /// MUST revert if the token is already attached with the context.
-  /// MUST emit the event {ContextAttached} with the context user is the current owner.
-  /// After the above conditions are met, this function MUST check if the controller address is a smart contract (e.g. code size > 0). If so, it MUST call {onAttached} and the call result MUST be skipped.
+  /// @dev See "attachContext rules" in "Token (Un)lock Rules".
   /// @param ctxHash Hash of a context.
   /// @param tokenId The NFT to be attached.
   /// @param data    Additional data with no specified format, MUST be sent unaltered in call to the {IREP15ContextCallback} hook(s) on controller.
@@ -112,6 +108,7 @@ interface IREP15 is IERC165, IERC721 {
   /// @notice Updates the context user of a token.
   /// @dev MUST revert if the method caller is not context controller.
   /// MUST revert if new user address is zero address.
+  /// MUST revert if the token is not attached to the context.
   /// MUST emit the event {ContextUserAssigned} on success.
   /// @param ctxHash Hash of a context.
   /// @param tokenId The NFT to be update.

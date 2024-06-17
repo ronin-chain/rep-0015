@@ -449,7 +449,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   function _checkAuthorizedOwnershipManager(uint256 tokenId, address operator) internal view virtual {
     REP15Utils.Delegation storage delegation = _delegations[tokenId];
 
-    if (delegation.isActive()) {
+    if (!delegation.isActive()) {
       ERC721._checkAuthorized(_ownerOf(tokenId), operator, tokenId);
       return;
     }

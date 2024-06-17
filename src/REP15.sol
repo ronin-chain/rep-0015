@@ -40,11 +40,17 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @inheritdoc IREP15
    */
   function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) external virtual {
+    address owner = _requireOwned(tokenId);
+
+    if (delegatee == owner || delegatee == address(0)) revert REP15InvalidDelegatee(delegatee);
+
+    if (until <= block.timestamp) revert REP15InvalidDelegationExpiration(until);
+
     REP15Utils.Delegation storage delegation = _delegations[tokenId];
 
     if (delegation.isActive()) revert REP15AlreadyDelegatedOwnership(tokenId, delegation.delegatee, delegation.until);
 
-    ERC721._checkAuthorized(_ownerOf(tokenId), _msgSender(), tokenId);
+    ERC721._checkAuthorized(owner, _msgSender(), tokenId);
 
     delegation.delegatee = delegatee;
     delegation.until = until;

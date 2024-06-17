@@ -3,6 +3,18 @@ pragma solidity ^0.8.26;
 
 interface IREP15Errors {
   /**
+   * @dev Indicates a failure with the `delegatee`. For example, the delegatee is zero address.
+   * @param delegatee Address of the delegatee.
+   */
+  error REP15InvalidDelegatee(address delegatee);
+
+  /**
+   * @dev Indicates a failure with the `until` timestamp (in seconds). For example, the timestamp is in the past.
+   * @param until The timestamp until the delegation is valid.
+   */
+  error REP15InvalidDelegationExpiration(uint64 until);
+
+  /**
    * @dev Indicates a token is already delegated ownership. Used in delegating ownership.
    * @param tokenId Identifier number of the token.
    * @param delegatee Address of the delegatee.

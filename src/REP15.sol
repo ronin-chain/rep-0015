@@ -411,6 +411,11 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   ) internal {
     if (checkReadyForDetachment) {
       uint64 readyForDetachmentAt = _tokenContext[tokenId][ctxHash].readyForDetachmentAt;
+
+      if (readyForDetachmentAt == 0) {
+        revert REP15NotRequestedForDetachment(ctxHash, tokenId);
+      }
+
       if (readyForDetachmentAt > block.timestamp) {
         revert REP15UnreadyForDetachment(ctxHash, tokenId, uint64(block.timestamp), readyForDetachmentAt);
       }

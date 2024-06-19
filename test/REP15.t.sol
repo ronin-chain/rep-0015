@@ -80,21 +80,24 @@ contract REP15Test is Test {
     STATE_DEPRECATED_ATTACHED_LOCKED_REQUESTED_PASSED
   ];
 
-  mapping(address controller => mapping(uint256 state => bytes32 ctxHash)) internal contexts;
+  mapping(address controller => mapping(uint256 state => bytes32 ctxHash)) internal allContexts;
 
   function setUp() public virtual {
     vm.warp(vm.unixTime());
-
     target.mint(address(this), tokenId);
+  }
 
+  function _initializeContexts(uint256 substate) internal {
     uint256 usecaseId = 0;
     for (uint256 i = 0; i < CONTROLLERS.length; ++i) {
       for (uint256 j = 0; j < STATES.length; ++j) {
         address controller = CONTROLLERS[i];
         uint256 state = STATES[j];
 
+        if (state & substate != substate) continue;
+
         bytes32 ctxHash = target.createContext(controller, detachingDuration, abi.encodePacked("usecase ", usecaseId++));
-        contexts[controller][state] = ctxHash;
+        allContexts[controller][state] = ctxHash;
 
         if (state & ATTACHED != 0) {
           target.attachContext(ctxHash, tokenId, "");
@@ -124,43 +127,7 @@ contract REP15Test is Test {
     }
   }
 
-  function _getContexts(uint256 state, bool containNonexistent)
-    internal
-    view
-    returns (bytes32[] memory ctxHashes, address[] memory controllers)
-  {
-    uint256 count = 0;
-    for (uint256 i = 0; i < CONTROLLERS.length; ++i) {
-      for (uint256 j = 0; j < STATES.length; ++j) {
-        if (STATES[j] & state == state) {
-          ++count;
-        }
-      }
-    }
-    if (containNonexistent) {
-      ++count;
-    }
-
-    ctxHashes = new bytes32[](count);
-    controllers = new address[](count);
-
-    count = 0;
-    for (uint256 i = 0; i < CONTROLLERS.length; ++i) {
-      for (uint256 j = 0; j < STATES.length; ++j) {
-        if (STATES[j] & state == state) {
-          ctxHashes[count] = contexts[CONTROLLERS[i]][STATES[j]];
-          controllers[count] = CONTROLLERS[i];
-          ++count;
-        }
-      }
-    }
-    if (containNonexistent) {
-      ctxHashes[count] = keccak256("random ctxHash");
-      controllers[count] = address(this);
-    }
-  }
-
-  function _delegateTo(address delegatee) public {
+  function _delegateTo(address delegatee) internal {
     target.startDelegateOwnership(tokenId, delegatee, uint64(block.timestamp + 2 days));
     vm.prank(delegatee);
     target.acceptOwnershipDelegation(tokenId);

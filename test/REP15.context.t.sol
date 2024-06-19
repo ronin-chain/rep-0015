@@ -586,7 +586,7 @@ contract REP15ContextTest is REP15Test {
     }
   }
 
-  function test_isTokenContextLocked_ReturnFalseWhen_NotAttacheContext() public view {
+  function test_isTokenContextLocked_ReturnFalseWhen_NotAttachedContext() public view {
     (bytes32[] memory ctxHashes,) = _getContexts(FREE, true);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
       assertEq(target.isTokenContextLocked(ctxHashes[i], tokenId), false);

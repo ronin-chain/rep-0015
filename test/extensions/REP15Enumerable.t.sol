@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { Test } from "forge-std/Test.sol";
 import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@ronin/rep-0015/extensions/REP15Enumerable.sol";
+import { REP15, REP15Enumerable } from "@ronin/rep-0015/extensions/REP15Enumerable.sol";
 
 contract REP15EnumerableTarget is REP15Enumerable {
   constructor(string memory name, string memory symbol, uint64 detachingDuration)
@@ -44,6 +44,12 @@ contract REP15EnumerableTest is Test {
     assertEq(target.getContext(uint256(2)), allContexts[2]);
   }
 
+  function test_getContext_RevertWhen_IndexIsOutOfBounds() public {
+    vm.expectRevert(abi.encodeWithSelector(REP15Enumerable.REP15OutOfBoundsContextIndex.selector, uint256(3)));
+
+    target.getContext(uint256(3));
+  }
+
   function test_getContextCount() public view {
     assertEq(target.getContextCount(), 3);
   }
@@ -51,6 +57,12 @@ contract REP15EnumerableTest is Test {
   function test_getAttachedContext() public view {
     assertEq(target.getAttachedContext(tokenId, uint256(0)), allContexts[0]);
     assertEq(target.getAttachedContext(tokenId, uint256(1)), allContexts[1]);
+  }
+
+  function test_getAttachedContext_RevertWhen_IndexIsOutOfBounds() public {
+    vm.expectRevert(abi.encodeWithSelector(REP15Enumerable.REP15OutOfBoundsContextIndex.selector, uint256(2)));
+
+    target.getAttachedContext(tokenId, uint256(2));
   }
 
   function test_getAttachedContextCount() public view {

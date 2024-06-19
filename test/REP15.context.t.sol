@@ -51,8 +51,7 @@ contract REP15ContextTest is REP15Test {
 
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectEmit(address(target));
       emit IREP15.ContextUpdated(ctxHash, newController, newDetachingDuration);
@@ -76,8 +75,7 @@ contract REP15ContextTest is REP15Test {
   function test_updateContext_RevertWhen_ContextIsNonexistentOrDeprecated() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(DEPRECATED, true);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InactiveContext.selector, ctxHash));
 
@@ -89,8 +87,7 @@ contract REP15ContextTest is REP15Test {
   function test_updateContext_RevertWhen_NewControllerIsZero() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InvalidController.selector, address(0)));
 
@@ -102,8 +99,7 @@ contract REP15ContextTest is REP15Test {
   function test_updateContext_RevertWhen_DetachingDurationExceedsMax() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectRevert(
         abi.encodeWithSelector(IREP15Errors.REP15ExceededMaxDetachingDuration.selector, MAX_DETACHING_DURATION + 1)
@@ -117,8 +113,7 @@ contract REP15ContextTest is REP15Test {
   function test_deprecateContext() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectEmit(address(target));
       emit IREP15.ContextDeprecated(ctxHash);
@@ -142,8 +137,7 @@ contract REP15ContextTest is REP15Test {
   function test_deprecateContext_RevertWhen_ContextIsNonexistentOrDeprecated() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(DEPRECATED, true);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InactiveContext.selector, ctxHash));
 
@@ -155,8 +149,7 @@ contract REP15ContextTest is REP15Test {
   function test_attachContext() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE | FREE, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectEmit(address(target));
       emit IREP15.ContextAttached(ctxHash, tokenId);
@@ -223,8 +216,7 @@ contract REP15ContextTest is REP15Test {
   function test_requestDetachContext_Unlocked() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(UNLOCKED | NOT_REQUESTED, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectEmit(address(target));
       emit IREP15.ContextDetached(ctxHash, tokenId);
@@ -241,8 +233,7 @@ contract REP15ContextTest is REP15Test {
   function test_requestDetachContext_Locked() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(LOCKED | NOT_REQUESTED, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectEmit(address(target));
       emit IREP15.ContextDetachmentRequested(ctxHash, tokenId);
@@ -309,8 +300,7 @@ contract REP15ContextTest is REP15Test {
   function test_execDetachContext() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(PASSED, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectEmit(address(target));
       emit IREP15.ContextDetached(ctxHash, tokenId);
@@ -385,8 +375,7 @@ contract REP15ContextTest is REP15Test {
   function test_execDetachContext_MustWaitForDetachingDurationAtTimeRequested() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE | PASSED, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.prank(controller);
       target.updateContext(ctxHash, controller, detachingDuration * 2);
@@ -397,8 +386,7 @@ contract REP15ContextTest is REP15Test {
   function test_execDetachContext_MustWaitForDetachingDurationAtTimeRequested_Revert() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE | WAITING, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.prank(controller);
       target.updateContext(ctxHash, controller, detachingDuration / 2);
@@ -409,8 +397,7 @@ contract REP15ContextTest is REP15Test {
   function testFuzz_setContextLock(bool locked) public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE | NOT_REQUESTED, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectEmit(address(target));
       emit IREP15.ContextLockUpdated(ctxHash, tokenId, locked);
@@ -423,8 +410,7 @@ contract REP15ContextTest is REP15Test {
   function testFuzz_setContextLock_RevertWhen_ContextIsNonexistentOrDeprecated(bool locked) public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(DEPRECATED, true);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InactiveContext.selector, ctxHash));
 
@@ -436,8 +422,7 @@ contract REP15ContextTest is REP15Test {
   function testFuzz_setContextLock_RevertWhen_NotAttachedContext(bool locked) public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE | FREE, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15NonexistentAttachedContext.selector, ctxHash, tokenId));
 
@@ -449,8 +434,7 @@ contract REP15ContextTest is REP15Test {
   function testFuzz_setContextLock_RevertWhen_Requested(bool locked) public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE | REQUESTED, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15RequestedForDetachment.selector, ctxHash, tokenId));
 
@@ -475,8 +459,7 @@ contract REP15ContextTest is REP15Test {
 
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE | ATTACHED, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectEmit(address(target));
       emit IREP15.ContextUserAssigned(ctxHash, tokenId, user);
@@ -491,8 +474,7 @@ contract REP15ContextTest is REP15Test {
 
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(DEPRECATED, true);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InactiveContext.selector, ctxHash));
 
@@ -506,8 +488,7 @@ contract REP15ContextTest is REP15Test {
 
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE | FREE, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15NonexistentAttachedContext.selector, ctxHash, tokenId));
 
@@ -519,8 +500,7 @@ contract REP15ContextTest is REP15Test {
   function test_setContextUser_RevertWhen_NewUserIsZero() public {
     (bytes32[] memory ctxHashes, address[] memory controllers) = _getContexts(ACTIVE | ATTACHED, false);
     for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      bytes32 ctxHash = ctxHashes[i];
-      address controller = controllers[i];
+      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
 
       vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InvalidContextUser.selector, address(0)));
 

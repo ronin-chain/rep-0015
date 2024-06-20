@@ -98,12 +98,6 @@ interface IREP15Errors {
   error REP15NonexistentAttachedContext(bytes32 ctxHash, uint256 tokenId);
 
   /**
-   * @dev Indicates a failure with the context `user`.
-   * @param user Address of the user.
-   */
-  error REP15InvalidContextUser(address user);
-
-  /**
    * Indicates an action is forbidden when a token context is requested for detachment.
    * @param ctxHash Hash of the context.
    * @param tokenId Identifier number of the token.

@@ -541,17 +541,6 @@ contract REP15ContextTest is REP15Test {
     }
   }
 
-  function test_setContextUser_RevertWhen_NewUserIsZero() public setUpContexts(ACTIVE | ATTACHED, false) {
-    for (uint256 i = 0; i < ctxHashes.length; ++i) {
-      (bytes32 ctxHash, address controller) = (ctxHashes[i], controllers[i]);
-
-      vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InvalidContextUser.selector, address(0)));
-
-      vm.prank(controller);
-      target.setContextUser(ctxHash, tokenId, address(0));
-    }
-  }
-
   function testFuzz_setContextUser_RevertWhen_CallerIsNotController(address user)
     public
     setUpContexts(ACTIVE | ATTACHED, false)

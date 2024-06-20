@@ -152,7 +152,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     _checkAuthorizedOwnershipManager(tokenId, operator);
 
-    _detachContext(ctxHash, tokenId, operator, data, true);
+    _detachContext(ctxHash, tokenId, operator, data, true, true);
   }
 
   /**
@@ -170,8 +170,6 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @inheritdoc IREP15
    */
   function setContextUser(bytes32 ctxHash, uint256 tokenId, address user) external virtual {
-    if (user == address(0)) revert REP15InvalidContextUser(address(0));
-
     _checkAuthorizedController(_msgSender(), ctxHash);
 
     _requireAttachedTokenContext(ctxHash, tokenId, false).user = user;
@@ -183,11 +181,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @dev Overrides {ERC721-transferFrom} with additional checks for REP15.
    */
   function transferFrom(address from, address to, uint256 tokenId) public virtual override(ERC721, IERC721) {
-    address operator = _msgSender();
-
-    _checkAuthorizedOwnershipManager(tokenId, operator);
-
-    _detachAllContexts(tokenId, operator, "");
+    _beforeTokenTransfer(tokenId, "");
 
     _transfer(from, to, tokenId);
   }
@@ -200,11 +194,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     virtual
     override(ERC721, IERC721)
   {
-    address operator = _msgSender();
-
-    _checkAuthorizedOwnershipManager(tokenId, operator);
-
-    _detachAllContexts(tokenId, operator, data);
+    _beforeTokenTransfer(tokenId, data);
 
     _safeTransfer(from, to, tokenId, data);
   }
@@ -384,7 +374,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     REP15Utils.TokenContext storage tokenContext = _requireAttachedTokenContext(ctxHash, tokenId, true);
 
     if (!tokenContext.locked) {
-      _detachContext(ctxHash, tokenId, operator, data, false);
+      _detachContext(ctxHash, tokenId, operator, data, false, true);
       return;
     }
 
@@ -407,7 +397,8 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     uint256 tokenId,
     address operator,
     bytes memory data,
-    bool checkReadyForDetachment
+    bool checkReadyForDetachment,
+    bool emitEvent
   ) internal {
     if (checkReadyForDetachment) {
       uint64 readyForDetachmentAt = _tokenContext[tokenId][ctxHash].readyForDetachmentAt;
@@ -424,7 +415,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     delete _tokenContext[tokenId][ctxHash];
     _removeAttachedContext(tokenId, ctxHash);
 
-    emit ContextDetached(ctxHash, tokenId);
+    if (emitEvent) emit ContextDetached(ctxHash, tokenId);
 
     address controller = _contexts[ctxHash].controller;
     if (controller.code.length > 0) {
@@ -433,14 +424,25 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   }
 
   /**
-   * @dev Detaches all contexts from a token.
+   * @dev Hook that is called before any token transfer.
+   *
+   * The `data` argument is used to pass additional information unaltered
+   * from `safeTransferFrom` to the `onExecDetachContext` hook on the controllers.
    */
-  function _detachAllContexts(uint256 tokenId, address operator, bytes memory data) internal virtual {
-    bytes32[] storage attachedContexts = _attachedContexts[tokenId];
+  function _beforeTokenTransfer(uint256 tokenId, bytes memory data) internal virtual {
+    address operator = _msgSender();
 
+    _checkAuthorizedOwnershipManager(tokenId, operator);
+
+    // Revoke current ownership delegation if any.
+    // No need to check if the delegation is active or emit the OwnershipDelegationStopped event.
+    delete _delegations[tokenId];
+
+    // Detach all attached contexts. No need to emit the ContextDetached event.
+    bytes32[] storage attachedContexts = _attachedContexts[tokenId];
     for (int256 i = int256(attachedContexts.length) - 1; i >= 0; --i) {
       bytes32 ctxHash = attachedContexts[uint256(i)];
-      _detachContext(ctxHash, tokenId, operator, data, _tokenContext[tokenId][ctxHash].locked);
+      _detachContext(ctxHash, tokenId, operator, data, _tokenContext[tokenId][ctxHash].locked, false);
     }
   }
 

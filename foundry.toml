@@ -4,3 +4,21 @@ out = "out"
 libs = ["lib"]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+solc = '0.8.26'
+evm_version = 'istanbul'
+use_literal_content = true
+extra_output = ["devdoc", "userdoc", "storagelayout"]
+fs_permissions = [{ access = "read-write", path = "./" }]
+
+[fmt]
+tab_width = 2
+line_length = 120
+bracket_spacing = true
+
+[rpc_endpoints]
+localhost = "http://localhost:8545"
+ethereum = "https://eth.llamarpc.com"
+ronin-mainnet = "https://api.roninchain.com/rpc"
+goerli = "https://ethereum-goerli.publicnode.com"
+ronin-testnet = "https://saigon-testnet.roninchain.com/rpc"

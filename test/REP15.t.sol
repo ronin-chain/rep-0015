@@ -33,51 +33,33 @@ contract REP15Test is Test {
 
   address[3] internal CONTROLLERS = [controllerEOA, controllerSuccess, controllerFail];
 
-  uint256 internal constant ACTIVE = 1 << 0;
-  uint256 internal constant DEPRECATED = 1 << 1;
+  uint256 internal constant FREE = 1 << 0;
+  uint256 internal constant ATTACHED = 1 << 1;
 
-  uint256 internal constant FREE = 1 << 2;
-  uint256 internal constant ATTACHED = 1 << 3;
+  uint256 internal constant UNLOCKED = 1 << 2;
+  uint256 internal constant LOCKED = 1 << 3;
 
-  uint256 internal constant UNLOCKED = 1 << 4;
-  uint256 internal constant LOCKED = 1 << 5;
+  uint256 internal constant NOT_REQUESTED = 1 << 4;
+  uint256 internal constant REQUESTED = 1 << 5;
 
-  uint256 internal constant NOT_REQUESTED = 1 << 6;
-  uint256 internal constant REQUESTED = 1 << 7;
+  uint256 internal constant WAITING = 1 << 6;
+  uint256 internal constant PASSED = 1 << 7;
 
-  uint256 internal constant WAITING = 1 << 8;
-  uint256 internal constant PASSED = 1 << 9;
+  uint256 internal constant NONEXISTENT = 1 << 8;
 
-  uint256 internal constant STATE_ACTIVE_FREE = ACTIVE | FREE;
-  uint256 internal constant STATE_ACTIVE_ATTACHED_UNLOCKED_NOT_REQUESTED = ACTIVE | ATTACHED | UNLOCKED | NOT_REQUESTED;
-  uint256 internal constant STATE_ACTIVE_ATTACHED_LOCKED_NOT_REQUESTED = ACTIVE | ATTACHED | LOCKED | NOT_REQUESTED;
-  uint256 internal constant STATE_ACTIVE_ATTACHED_LOCKED_REQUESTED_WAITING =
-    ACTIVE | ATTACHED | LOCKED | REQUESTED | WAITING;
-  uint256 internal constant STATE_ACTIVE_ATTACHED_LOCKED_REQUESTED_PASSED =
-    ACTIVE | ATTACHED | LOCKED | REQUESTED | PASSED;
-
-  uint256 internal constant STATE_DEPRECATED_FREE = DEPRECATED | FREE;
-  uint256 internal constant STATE_DEPRECATED_ATTACHED_UNLOCKED_NOT_REQUESTED =
-    DEPRECATED | ATTACHED | UNLOCKED | NOT_REQUESTED;
-  uint256 internal constant STATE_DEPRECATED_ATTACHED_LOCKED_NOT_REQUESTED =
-    DEPRECATED | ATTACHED | LOCKED | NOT_REQUESTED;
-  uint256 internal constant STATE_DEPRECATED_ATTACHED_LOCKED_REQUESTED_WAITING =
-    DEPRECATED | ATTACHED | LOCKED | REQUESTED | WAITING;
-  uint256 internal constant STATE_DEPRECATED_ATTACHED_LOCKED_REQUESTED_PASSED =
-    DEPRECATED | ATTACHED | LOCKED | REQUESTED | PASSED;
+  uint256 internal constant STATE_FREE = FREE;
+  uint256 internal constant STATE_ATTACHED_UNLOCKED_NOT_REQUESTED = ATTACHED | UNLOCKED | NOT_REQUESTED;
+  uint256 internal constant STATE_ATTACHED_LOCKED_NOT_REQUESTED = ATTACHED | LOCKED | NOT_REQUESTED;
+  uint256 internal constant STATE_ATTACHED_LOCKED_REQUESTED_WAITING = ATTACHED | LOCKED | REQUESTED | WAITING;
+  uint256 internal constant STATE_ATTACHED_LOCKED_REQUESTED_PASSED = ATTACHED | LOCKED | REQUESTED | PASSED;
 
   // possible states
-  uint256[10] internal STATES = [
-    STATE_ACTIVE_FREE,
-    STATE_ACTIVE_ATTACHED_UNLOCKED_NOT_REQUESTED,
-    STATE_ACTIVE_ATTACHED_LOCKED_NOT_REQUESTED,
-    STATE_ACTIVE_ATTACHED_LOCKED_REQUESTED_WAITING,
-    STATE_ACTIVE_ATTACHED_LOCKED_REQUESTED_PASSED,
-    STATE_DEPRECATED_FREE,
-    STATE_DEPRECATED_ATTACHED_UNLOCKED_NOT_REQUESTED,
-    STATE_DEPRECATED_ATTACHED_LOCKED_NOT_REQUESTED,
-    STATE_DEPRECATED_ATTACHED_LOCKED_REQUESTED_WAITING,
-    STATE_DEPRECATED_ATTACHED_LOCKED_REQUESTED_PASSED
+  uint256[5] internal STATES = [
+    STATE_FREE,
+    STATE_ATTACHED_UNLOCKED_NOT_REQUESTED,
+    STATE_ATTACHED_LOCKED_NOT_REQUESTED,
+    STATE_ATTACHED_LOCKED_REQUESTED_WAITING,
+    STATE_ATTACHED_LOCKED_REQUESTED_PASSED
   ];
 
   mapping(address controller => mapping(uint256 state => bytes32 ctxHash)) internal allContexts;
@@ -100,7 +82,7 @@ contract REP15Test is Test {
         allContexts[controller][state] = ctxHash;
 
         if (state & ATTACHED != 0) {
-          target.attachContext(ctxHash, tokenId, "");
+          target.attachContext(ctxHash, tokenId, "test-init");
         }
 
         if (state & LOCKED != 0) {
@@ -117,11 +99,6 @@ contract REP15Test is Test {
           target.requestDetachContext(ctxHash, tokenId, "");
 
           vm.warp(current);
-        }
-
-        if (state & DEPRECATED != 0) {
-          vm.prank(controller);
-          target.deprecateContext(ctxHash);
         }
       }
     }

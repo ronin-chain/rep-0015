@@ -7,8 +7,6 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 interface IREP15 is IERC165 {
   /// @dev This emits when a context is updated by any mechanism.
   event ContextUpdated(bytes32 indexed ctxHash, address indexed controller, uint64 detachingDuration);
-  /// @dev This emits when a context is deprecated by any mechanism.
-  event ContextDeprecated(bytes32 indexed ctxHash);
   /// @dev This emits when a token is attached to a certain context by any mechanism.
   event ContextAttached(bytes32 indexed ctxHash, uint256 indexed tokenId);
   /// @dev This emits when a token is requested to detach from a certain context by any mechanism.
@@ -34,11 +32,7 @@ interface IREP15 is IERC165 {
   /// @param ctxHash            A hash of context to query the controller.
   /// @return controller        The address of the context controller.
   /// @return detachingDuration The duration must be waited for detachment in second(s).
-  /// @return deprecated        A flag that indicates whether the context is deprecated.
-  function getContext(bytes32 ctxHash)
-    external
-    view
-    returns (address controller, uint64 detachingDuration, bool deprecated);
+  function getContext(bytes32 ctxHash) external view returns (address controller, uint64 detachingDuration);
 
   /// @notice Creates a new context.
   /// @dev MUST revert if the context is already existent.
@@ -55,7 +49,7 @@ interface IREP15 is IERC165 {
 
   /// @notice Updates an existing context.
   /// @dev MUST revert if method caller is not the current controller.
-  /// MUST revert if the context is non-existent or deprecated.
+  /// MUST revert if the context is non-existent.
   /// MUST revert if the new controller address is zero address.
   /// MUST revert if the detaching duration is larger than max detaching duration.
   /// MUST emit the event {ContextUpdated} on success.
@@ -63,13 +57,6 @@ interface IREP15 is IERC165 {
   /// @param newController        The address of new controller.
   /// @param newDetachingDuration The new duration must be waited for detachment in second(s).
   function updateContext(bytes32 ctxHash, address newController, uint64 newDetachingDuration) external;
-
-  /// @notice Deprecates an existing context.
-  /// @dev MUST revert if method caller is not the current controller.
-  /// MUST revert if the context is non-existent or deprecated.
-  /// MUST emit the event {ContextDeprecated} on success.
-  /// @param ctxHash Hash of the context to remove.
-  function deprecateContext(bytes32 ctxHash) external;
 
   /// @notice Queries if a token is attached to a certain context.
   /// @param ctxHash Hash of a context.
@@ -84,7 +71,7 @@ interface IREP15 is IERC165 {
   /// @param data    Additional data with no specified format, MUST be sent unaltered in call to the {IREP15ContextCallback} hook(s) on controller.
   function attachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) external;
 
-  /// @notice Requests to unlock a token if it is locked.
+  /// @notice Requests to detach a token from a certain context.
   /// @dev See "requestDetachContext rules" in "Token (Un)lock Rules".
   /// @param ctxHash Hash of a context.
   /// @param tokenId The NFT to be detached.
@@ -106,7 +93,7 @@ interface IREP15 is IERC165 {
 
   /// @notice Updates the context user of a token.
   /// @dev MUST revert if the method caller is not context controller.
-  /// MUST revert if new user address is zero address.
+  /// MUST revert if the context is non-existent.
   /// MUST revert if the token is not attached to the context.
   /// MUST emit the event {ContextUserAssigned} on success.
   /// @param ctxHash Hash of a context.
@@ -140,7 +127,7 @@ interface IREP15 is IERC165 {
   function getOwnershipDelegatee(uint256 tokenId) external view returns (address delegatee, uint64 until);
 
   /// @notice Finds the pending ownership delegatee of a token.
-  /// @dev MUST revert if there is no (or an expired) ownership delegation.
+  /// @dev MUST revert if there is no (or an expired) pending ownership delegation.
   /// @param tokenId    The NFT to be queried.
   /// @return delegatee Address of pending delegatee.
   /// @return until     The delegation expiry time in the future.
@@ -148,14 +135,14 @@ interface IREP15 is IERC165 {
 
   /// @notice Starts ownership delegation and retains ownership until a specific timestamp.
   /// @dev Replaces the pending delegation if any.
-  /// See "stopOwnershipDelegation rules" in "Ownership Delegation Rules".
+  /// See "startDelegateOwnership rules" in "Ownership Delegation Rules".
   /// @param tokenId   The NFT to be delegated.
   /// @param delegatee Address of new delegatee.
   /// @param until     The delegation expiry time.
   function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) external;
 
   /// @notice Accepts ownership delegation request.
-  /// @dev See "stopOwnershipDelegation rules" in "Ownership Delegation Rules".
+  /// @dev See "acceptOwnershipDelegation rules" in "Ownership Delegation Rules".
   /// @param tokenId The NFT to be accepted.
   function acceptOwnershipDelegation(uint256 tokenId) external;
 

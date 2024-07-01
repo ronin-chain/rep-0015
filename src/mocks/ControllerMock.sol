@@ -19,17 +19,17 @@ contract ControllerMock is IREP15ContextCallback {
   }
 
   function onAttached(bytes32 ctxHash, uint256 tokenId, address operator, bytes calldata data) external {
-    if (_reverted) revert("ControllerMock: reverted onAttached");
     emit OnAttached(ctxHash, tokenId, operator, data);
+    if (_reverted && bytes32(data) != bytes32("test-init")) revert("ControllerMock: reverted onAttached");
   }
 
   function onDetachRequested(bytes32 ctxHash, uint256 tokenId, address operator, bytes calldata data) external {
-    if (_reverted) revert("ControllerMock: reverted onDetachRequested");
     emit OnDetachRequested(ctxHash, tokenId, operator, data);
+    if (_reverted) revert("ControllerMock: reverted onDetachRequested");
   }
 
   function onExecDetachContext(bytes32 ctxHash, uint256 tokenId, address operator, bytes calldata data) external {
-    if (_reverted) revert("ControllerMock: reverted onExecDetachContext");
     emit OnExecDetachContext(ctxHash, tokenId, operator, data);
+    if (_reverted) revert("ControllerMock: reverted onExecDetachContext");
   }
 }

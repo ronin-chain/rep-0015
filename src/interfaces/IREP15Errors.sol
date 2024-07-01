@@ -85,12 +85,6 @@ interface IREP15Errors {
   error REP15NonexistentContext(bytes32 ctxHash);
 
   /**
-   * @dev Indicates a context is not active, i.e., nonexistent or deprecated.
-   * @param ctxHash Hash of the context.
-   */
-  error REP15InactiveContext(bytes32 ctxHash);
-
-  /**
    * @dev Indicates a token context is not existent.
    * @param ctxHash Hash of the context.
    * @param tokenId Identifier number of the token.

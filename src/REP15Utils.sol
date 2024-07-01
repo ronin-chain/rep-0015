@@ -9,7 +9,6 @@ library REP15Utils {
   }
 
   struct Context {
-    bool active;
     address controller;
     uint64 detachingDuration;
   }
@@ -31,10 +30,6 @@ library REP15Utils {
 
   function isExistent(Context storage self) internal view returns (bool) {
     return self.controller != address(0);
-  }
-
-  function isDeprecated(Context storage self) internal view returns (bool) {
-    return !self.active && self.controller != address(0);
   }
 
   function hasRequestedForDetachment(TokenContext storage self) internal view returns (bool) {

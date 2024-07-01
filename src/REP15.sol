@@ -114,17 +114,6 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   /**
    * @inheritdoc IREP15
    */
-  function deprecateContext(bytes32 ctxHash) external virtual {
-    _checkAuthorizedController(_msgSender(), ctxHash);
-
-    _contexts[ctxHash].active = false;
-
-    emit ContextDeprecated(ctxHash);
-  }
-
-  /**
-   * @inheritdoc IREP15
-   */
   function attachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) external virtual {
     address operator = _msgSender();
 
@@ -139,7 +128,8 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   function requestDetachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) external virtual {
     address operator = _msgSender();
 
-    _checkAuthorizedOwnershipManager(tokenId, operator);
+    if (operator != _contexts[ctxHash].controller) _checkAuthorizedOwnershipManager(tokenId, operator);
+    else _detachContext(ctxHash, tokenId, operator, data, false, true);
 
     _requestDetachContext(ctxHash, tokenId, operator, data);
   }
@@ -178,24 +168,6 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   }
 
   /**
-   * @dev Overrides {ERC721-transferFrom} with additional checks for REP15.
-   */
-  function transferFrom(address from, address to, uint256 tokenId) public virtual override {
-    _beforeTokenTransfer(tokenId, "");
-
-    _transfer(from, to, tokenId);
-  }
-
-  /**
-   * @dev Overrides {ERC721-safeTransferFrom} with additional checks for REP15.
-   */
-  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
-    _beforeTokenTransfer(tokenId, data);
-
-    _safeTransfer(from, to, tokenId, data);
-  }
-
-  /**
    * @inheritdoc IREP15
    */
   function maxDetachingDuration() public view virtual override returns (uint64) {
@@ -205,17 +177,12 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   /**
    * @inheritdoc IREP15
    */
-  function getContext(bytes32 ctxHash)
-    external
-    view
-    virtual
-    returns (address controller, uint64 detachingDuration, bool deprecated)
-  {
+  function getContext(bytes32 ctxHash) external view virtual returns (address controller, uint64 detachingDuration) {
     REP15Utils.Context storage context = _contexts[ctxHash];
 
     if (!context.isExistent()) revert REP15NonexistentContext(ctxHash);
 
-    return (context.controller, context.detachingDuration, context.isDeprecated());
+    return (context.controller, context.detachingDuration);
   }
 
   /**
@@ -273,25 +240,25 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   }
 
   /**
-   * @dev Ensures the context is active and returns the controller of the context `ctxHash`.
+   * @dev Ensures the context is existent and returns the controller of the context `ctxHash`.
    */
-  function _requireActiveContext(bytes32 ctxHash) internal view returns (address controller) {
-    if (!_contexts[ctxHash].active) revert REP15InactiveContext(ctxHash);
-    return _contexts[ctxHash].controller;
+  function _requireControlled(bytes32 ctxHash) internal view returns (address controller) {
+    controller = _contexts[ctxHash].controller;
+    if (controller == address(0)) revert REP15NonexistentContext(ctxHash);
   }
 
   /**
    * @dev Checks if the context is active and `controller` is the controller of the context `ctxHash`.
    */
   function _checkAuthorizedController(address controller, bytes32 ctxHash) internal view virtual {
-    if (controller != _requireActiveContext(ctxHash)) revert REP15InvalidController(controller);
+    if (controller != _requireControlled(ctxHash)) revert REP15InvalidController(controller);
   }
 
   /**
    * @dev Internal function to create or update a context.
    *
    * The `auth` argument is optional. If the value passed is non 0, then this function will check that
-   * `auth` is the controller of `ctxHash` before updating or deprecating the context.
+   * `auth` is the controller of `ctxHash` before updating the context.
    *
    * Emits a {ContextUpdated} event.
    */
@@ -307,7 +274,6 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     } else {
       // Creating context
       if (context.controller != address(0)) revert REP15ExistentContext(ctxHash);
-      context.active = true;
     }
 
     context.controller = controller;
@@ -351,7 +317,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @dev Attaches a context to a token.
    */
   function _attachContext(bytes32 ctxHash, uint256 tokenId, address operator, bytes calldata data) internal {
-    address controller = _requireActiveContext(ctxHash);
+    address controller = _requireControlled(ctxHash);
 
     _requireNotAttachedTokenContext(ctxHash, tokenId).attached = true;
     _addAttachedContext(tokenId, ctxHash);
@@ -359,7 +325,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     emit ContextAttached(ctxHash, tokenId);
 
     if (controller.code.length > 0) {
-      try IREP15ContextCallback(controller).onAttached(ctxHash, tokenId, operator, data) { } catch { }
+      IREP15ContextCallback(controller).onAttached(ctxHash, tokenId, operator, data);
     }
   }
 
@@ -420,26 +386,31 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   }
 
   /**
-   * @dev Hook that is called before any token transfer.
+   * @dev Overrides the internal `_update` function to revoke ownership delegation and detach all attached contexts
+   * in case of transfers or burns.
    *
-   * The `data` argument is used to pass additional information unaltered
-   * from `safeTransferFrom` to the `onExecDetachContext` hook on the controllers.
+   * If `auth` is non-zero and this function will check if `auth`is the ownership manager, an authorized operator of
+   * ownership manager, or the approved address for this NFT (if the token is not being delegated).
    */
-  function _beforeTokenTransfer(uint256 tokenId, bytes memory data) internal virtual {
-    address operator = _msgSender();
-
-    _checkAuthorizedOwnershipManager(tokenId, operator);
-
-    // Revoke current ownership delegation if any.
-    // No need to check if the delegation is active or emit the OwnershipDelegationStopped event.
-    delete _delegations[tokenId];
-
-    // Detach all attached contexts. No need to emit the ContextDetached event.
-    bytes32[] storage attachedContexts = _attachedContexts[tokenId];
-    for (int256 i = int256(attachedContexts.length) - 1; i >= 0; --i) {
-      bytes32 ctxHash = attachedContexts[uint256(i)];
-      _detachContext(ctxHash, tokenId, operator, data, _tokenContext[tokenId][ctxHash].locked, false);
+  function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
+    if (auth != address(0)) {
+      _checkAuthorizedOwnershipManager(tokenId, auth);
     }
+
+    if (auth != address(0) || to == address(0)) {
+      // Revoke current ownership delegation if any.
+      // No need to check if the delegation is active or emit the OwnershipDelegationStopped event.
+      delete _delegations[tokenId];
+
+      // Detach all attached contexts. No need to emit the ContextDetached event.
+      bytes32[] storage attachedContexts = _attachedContexts[tokenId];
+      for (int256 i = int256(attachedContexts.length) - 1; i >= 0; --i) {
+        bytes32 ctxHash = attachedContexts[uint256(i)];
+        _detachContext(ctxHash, tokenId, auth, "", _tokenContext[tokenId][ctxHash].locked, false);
+      }
+    }
+
+    return super._update(to, tokenId, address(0));
   }
 
   /**

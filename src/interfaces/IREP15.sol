@@ -2,10 +2,9 @@
 pragma solidity ^0.8.26;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /// Note: the ERC-165 identifier for this interface is 0xba63ebbb.
-interface IREP15 is IERC165, IERC721 {
+interface IREP15 is IERC165 {
   /// @dev This emits when a context is updated by any mechanism.
   event ContextUpdated(bytes32 indexed ctxHash, address indexed controller, uint64 detachingDuration);
   /// @dev This emits when a context is deprecated by any mechanism.

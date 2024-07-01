@@ -180,7 +180,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   /**
    * @dev Overrides {ERC721-transferFrom} with additional checks for REP15.
    */
-  function transferFrom(address from, address to, uint256 tokenId) public virtual override(ERC721, IERC721) {
+  function transferFrom(address from, address to, uint256 tokenId) public virtual override {
     _beforeTokenTransfer(tokenId, "");
 
     _transfer(from, to, tokenId);
@@ -189,11 +189,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   /**
    * @dev Overrides {ERC721-safeTransferFrom} with additional checks for REP15.
    */
-  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
-    public
-    virtual
-    override(ERC721, IERC721)
-  {
+  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
     _beforeTokenTransfer(tokenId, data);
 
     _safeTransfer(from, to, tokenId, data);

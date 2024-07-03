@@ -128,10 +128,12 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   function requestDetachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) external virtual {
     address operator = _msgSender();
 
-    if (operator != _contexts[ctxHash].controller) _checkAuthorizedOwnershipManager(tokenId, operator);
-    else _detachContext(ctxHash, tokenId, operator, data, false, true);
-
-    _requestDetachContext(ctxHash, tokenId, operator, data);
+    if (operator != _contexts[ctxHash].controller) {
+      _checkAuthorizedOwnershipManager(tokenId, operator);
+      _requestDetachContext(ctxHash, tokenId, operator, data);
+    } else {
+      _detachContext(ctxHash, tokenId, operator, data, false, true);
+    }
   }
 
   /**

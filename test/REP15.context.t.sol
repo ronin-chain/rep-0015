@@ -201,15 +201,16 @@ contract REP15ContextTest is REP15Test {
     target.requestDetachContext(ctxHash, tokenId, "request detach data");
   }
 
-  function test_requestDetachContext_CallerIsController() public withContext(UNLOCKED | NOT_REQUESTED) {
+  function test_requestDetachContext_CallerIsController() public withContext(NOT_REQUESTED) {
     vm.expectEmit(address(target));
     emit IREP15.ContextDetached(ctxHash, tokenId);
 
     if (controller == controllerSuccess) {
       vm.expectEmit(controllerSuccess);
-      emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, address(this), "request detach data");
+      emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, controller, "request detach data");
     }
 
+    vm.prank(controller);
     target.requestDetachContext(ctxHash, tokenId, "request detach data");
   }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.18;
 
 import { IERC165, ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import { IERC721, ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -13,7 +13,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   using REP15Utils for REP15Utils.Context;
   using REP15Utils for REP15Utils.TokenContext;
 
-  uint64 internal immutable _maxDetachingDuration;
+  uint64 internal immutable _MAX_DETACHING_DURATION;
 
   mapping(uint256 tokenId => REP15Utils.Delegation) private _delegations;
 
@@ -26,7 +26,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   mapping(uint256 tokenId => mapping(bytes32 ctxHash => uint256 index)) internal _attachedContextsIndex;
 
   constructor(uint64 maxDetachingDurationSeconds) {
-    _maxDetachingDuration = maxDetachingDurationSeconds;
+    _MAX_DETACHING_DURATION = maxDetachingDurationSeconds;
   }
 
   /**
@@ -39,21 +39,23 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   /**
    * @inheritdoc IREP15
    */
-  function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) external virtual {
+  function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) public virtual {
     address owner = _requireOwned(tokenId);
 
     if (delegatee == owner || delegatee == address(0)) revert REP15InvalidDelegatee(delegatee);
 
     if (until <= block.timestamp) revert REP15InvalidDelegationExpiration(until);
 
-    REP15Utils.Delegation storage delegation = _delegations[tokenId];
+    REP15Utils.Delegation storage $delegation = _delegations[tokenId];
 
-    if (delegation.isActive()) revert REP15AlreadyDelegatedOwnership(tokenId, delegation.delegatee, delegation.until);
+    if ($delegation.isActive()) {
+      revert REP15AlreadyDelegatedOwnership(tokenId, $delegation.delegatee, $delegation.until);
+    }
 
     ERC721._checkAuthorized(owner, _msgSender(), tokenId);
 
-    delegation.delegatee = delegatee;
-    delegation.until = until;
+    $delegation.delegatee = delegatee;
+    $delegation.until = until;
 
     emit OwnershipDelegationStarted(tokenId, delegatee, until);
   }
@@ -61,16 +63,16 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   /**
    * @inheritdoc IREP15
    */
-  function acceptOwnershipDelegation(uint256 tokenId) external virtual {
-    REP15Utils.Delegation storage delegation = _delegations[tokenId];
-    address delegatee = delegation.delegatee;
-    uint64 until = delegation.until;
+  function acceptOwnershipDelegation(uint256 tokenId) public virtual {
+    REP15Utils.Delegation storage $delegation = _delegations[tokenId];
+    address delegatee = $delegation.delegatee;
+    uint64 until = $delegation.until;
 
-    if (!delegation.isPending()) revert REP15NonexistentPendingOwnershipDelegation(tokenId);
+    if (!$delegation.isPending()) revert REP15NonexistentPendingOwnershipDelegation(tokenId);
 
     _checkAuthorizedDelegatee(delegatee, _msgSender(), tokenId);
 
-    delegation.delegated = true;
+    $delegation.delegated = true;
 
     emit OwnershipDelegationAccepted(tokenId, delegatee, until);
   }
@@ -78,11 +80,11 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   /**
    * @inheritdoc IREP15
    */
-  function stopOwnershipDelegation(uint256 tokenId) external virtual {
-    REP15Utils.Delegation storage delegation = _delegations[tokenId];
-    address delegatee = delegation.delegatee;
+  function stopOwnershipDelegation(uint256 tokenId) public virtual {
+    REP15Utils.Delegation storage $delegation = _delegations[tokenId];
+    address delegatee = $delegation.delegatee;
 
-    if (!delegation.isActive()) revert REP15InactiveOwnershipDelegation(tokenId);
+    if (!$delegation.isActive()) revert REP15InactiveOwnershipDelegation(tokenId);
 
     _checkAuthorizedDelegatee(delegatee, _msgSender(), tokenId);
 
@@ -99,7 +101,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     virtual
     returns (bytes32 ctxHash)
   {
-    ctxHash = keccak256(abi.encodePacked(_msgSender(), ctxMsg));
+    ctxHash = keccak256(abi.encode(_msgSender(), ctxMsg));
 
     _updateContext(ctxHash, controller, detachingDuration, address(0));
   }
@@ -132,7 +134,15 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
       _checkAuthorizedOwnershipManager(tokenId, operator);
       _requestDetachContext(ctxHash, tokenId, operator, data);
     } else {
-      _detachContext(ctxHash, tokenId, operator, data, false, true);
+      // _detachContext(ctxHash, tokenId, operator, data, false, true);
+      _detachContext({
+        ctxHash: ctxHash,
+        tokenId: tokenId,
+        operator: operator,
+        data: data,
+        checkReadyForDetachment: false,
+        emitEvent: true
+      });
     }
   }
 
@@ -173,18 +183,18 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @inheritdoc IREP15
    */
   function maxDetachingDuration() public view virtual override returns (uint64) {
-    return _maxDetachingDuration;
+    return _MAX_DETACHING_DURATION;
   }
 
   /**
    * @inheritdoc IREP15
    */
   function getContext(bytes32 ctxHash) external view virtual returns (address controller, uint64 detachingDuration) {
-    REP15Utils.Context storage context = _contexts[ctxHash];
+    REP15Utils.Context storage $context = _contexts[ctxHash];
 
-    if (!context.isExistent()) revert REP15NonexistentContext(ctxHash);
+    if (!$context.isExistent()) revert REP15NonexistentContext(ctxHash);
 
-    return (context.controller, context.detachingDuration);
+    return ($context.controller, $context.detachingDuration);
   }
 
   /**
@@ -212,9 +222,9 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @inheritdoc IREP15
    */
   function getOwnershipManager(uint256 tokenId) public view virtual returns (address manager) {
-    REP15Utils.Delegation storage delegation = _delegations[tokenId];
+    REP15Utils.Delegation storage $delegation = _delegations[tokenId];
 
-    if (delegation.isActive()) return _delegations[tokenId].delegatee;
+    if ($delegation.isActive()) return _delegations[tokenId].delegatee;
 
     return _requireOwned(tokenId);
   }
@@ -223,22 +233,22 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @inheritdoc IREP15
    */
   function getOwnershipDelegatee(uint256 tokenId) external view virtual returns (address delegatee, uint64 until) {
-    REP15Utils.Delegation storage delegation = _delegations[tokenId];
+    REP15Utils.Delegation storage $delegation = _delegations[tokenId];
 
-    if (!delegation.isActive()) revert REP15InactiveOwnershipDelegation(tokenId);
+    if (!$delegation.isActive()) revert REP15InactiveOwnershipDelegation(tokenId);
 
-    return (delegation.delegatee, delegation.until);
+    return ($delegation.delegatee, $delegation.until);
   }
 
   /**
    * @inheritdoc IREP15
    */
   function pendingOwnershipDelegatee(uint256 tokenId) external view virtual returns (address delegatee, uint64 until) {
-    REP15Utils.Delegation storage delegation = _delegations[tokenId];
+    REP15Utils.Delegation storage $delegation = _delegations[tokenId];
 
-    if (!delegation.isPending()) revert REP15NonexistentPendingOwnershipDelegation(tokenId);
+    if (!$delegation.isPending()) revert REP15NonexistentPendingOwnershipDelegation(tokenId);
 
-    return (delegation.delegatee, delegation.until);
+    return ($delegation.delegatee, $delegation.until);
   }
 
   /**
@@ -268,18 +278,18 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     if (controller == address(0)) revert REP15InvalidController(address(0));
     if (detachingDuration > maxDetachingDuration()) revert REP15ExceededMaxDetachingDuration(detachingDuration);
 
-    REP15Utils.Context storage context = _contexts[ctxHash];
+    REP15Utils.Context storage $context = _contexts[ctxHash];
 
     if (auth != address(0)) {
       // Updating context
       _checkAuthorizedController(auth, ctxHash);
     } else {
       // Creating context
-      if (context.controller != address(0)) revert REP15ExistentContext(ctxHash);
+      if ($context.controller != address(0)) revert REP15ExistentContext(ctxHash);
     }
 
-    context.controller = controller;
-    context.detachingDuration = detachingDuration;
+    $context.controller = controller;
+    $context.detachingDuration = detachingDuration;
 
     emit ContextUpdated(ctxHash, controller, detachingDuration);
   }
@@ -291,13 +301,13 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   function _requireAttachedTokenContext(bytes32 ctxHash, uint256 tokenId, bool checkNotRequestedForDetachment)
     internal
     view
-    returns (REP15Utils.TokenContext storage tokenContext)
+    returns (REP15Utils.TokenContext storage $tokenContext)
   {
-    tokenContext = _tokenContext[tokenId][ctxHash];
+    $tokenContext = _tokenContext[tokenId][ctxHash];
 
-    if (!tokenContext.attached) revert REP15NonexistentAttachedContext(ctxHash, tokenId);
+    if (!$tokenContext.attached) revert REP15NonexistentAttachedContext(ctxHash, tokenId);
 
-    if (checkNotRequestedForDetachment && tokenContext.hasRequestedForDetachment()) {
+    if (checkNotRequestedForDetachment && $tokenContext.hasRequestedForDetachment()) {
       revert REP15RequestedForDetachment(ctxHash, tokenId);
     }
   }
@@ -308,11 +318,11 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   function _requireNotAttachedTokenContext(bytes32 ctxHash, uint256 tokenId)
     internal
     view
-    returns (REP15Utils.TokenContext storage tokenContext)
+    returns (REP15Utils.TokenContext storage $tokenContext)
   {
-    tokenContext = _tokenContext[tokenId][ctxHash];
+    $tokenContext = _tokenContext[tokenId][ctxHash];
 
-    if (tokenContext.attached) revert REP15AlreadyAttachedContext(ctxHash, tokenId);
+    if ($tokenContext.attached) revert REP15AlreadyAttachedContext(ctxHash, tokenId);
   }
 
   /**
@@ -335,14 +345,14 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @dev Requests detachment of a context from a token.
    */
   function _requestDetachContext(bytes32 ctxHash, uint256 tokenId, address operator, bytes calldata data) internal {
-    REP15Utils.TokenContext storage tokenContext = _requireAttachedTokenContext(ctxHash, tokenId, true);
+    REP15Utils.TokenContext storage $tokenContext = _requireAttachedTokenContext(ctxHash, tokenId, true);
 
-    if (!tokenContext.locked) {
+    if (!$tokenContext.locked) {
       _detachContext(ctxHash, tokenId, operator, data, false, true);
       return;
     }
 
-    tokenContext.readyForDetachmentAt = uint64(block.timestamp) + _contexts[ctxHash].detachingDuration;
+    $tokenContext.readyForDetachmentAt = uint64(block.timestamp) + _contexts[ctxHash].detachingDuration;
 
     emit ContextDetachmentRequested(ctxHash, tokenId);
 
@@ -391,7 +401,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @dev Overrides the internal `_update` function to revoke ownership delegation and detach all attached contexts
    * in case of transfers or burns.
    *
-   * If `auth` is non-zero and this function will check if `auth`is the ownership manager, an authorized operator of
+   * If `auth` is non-zero and this function will check if `auth` is the ownership manager, an authorized operator of
    * ownership manager, or the approved address for this NFT (if the token is not being delegated).
    */
   function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
@@ -429,14 +439,14 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * or the approved address for this NFT (if the token is not being delegated).
    */
   function _checkAuthorizedOwnershipManager(uint256 tokenId, address operator) internal view virtual {
-    REP15Utils.Delegation storage delegation = _delegations[tokenId];
+    REP15Utils.Delegation storage $delegation = _delegations[tokenId];
 
-    if (!delegation.isActive()) {
+    if (!$delegation.isActive()) {
       ERC721._checkAuthorized(_ownerOf(tokenId), operator, tokenId);
       return;
     }
 
-    _checkAuthorizedDelegatee(delegation.delegatee, operator, tokenId);
+    _checkAuthorizedDelegatee($delegation.delegatee, operator, tokenId);
   }
 
   /**

@@ -409,6 +409,8 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
       _checkAuthorizedOwnershipManager(tokenId, auth);
     }
 
+    // Revoke ownership delegation and detach all attached contexts if the token is transferred or burned.
+    // If the token is being minted, `auth` will be zero.
     if (auth != address(0) || to == address(0)) {
       // Revoke current ownership delegation if any.
       // No need to check if the delegation is active or emit the OwnershipDelegationStopped event.

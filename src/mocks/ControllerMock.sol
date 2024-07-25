@@ -8,7 +8,7 @@ contract ControllerMock is IREP15ContextCallback {
 
   event OnAttached(bytes32 ctxHash, uint256 tokenId, address operator, bytes data);
   event OnDetachRequested(bytes32 ctxHash, uint256 tokenId, address operator, bytes data);
-  event OnExecDetachContext(bytes32 ctxHash, uint256 tokenId, address operator, bytes data);
+  event OnExecDetachContext(bytes32 ctxHash, uint256 tokenId, address user, address operator, bytes data);
 
   constructor(bool reverted) {
     _reverted = reverted;
@@ -28,8 +28,8 @@ contract ControllerMock is IREP15ContextCallback {
     if (_reverted) revert("ControllerMock: reverted onDetachRequested");
   }
 
-  function onExecDetachContext(bytes32 ctxHash, uint256 tokenId, address operator, bytes calldata data) external {
-    emit OnExecDetachContext(ctxHash, tokenId, operator, data);
+  function onExecDetachContext(bytes32 ctxHash, uint256 tokenId, address user, address operator, bytes calldata data) external {
+    emit OnExecDetachContext(ctxHash, tokenId, user, operator, data);
     if (_reverted) revert("ControllerMock: reverted onExecDetachContext");
   }
 }

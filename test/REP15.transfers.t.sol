@@ -111,7 +111,7 @@ contract REP15TransfersTest is REP15Test {
       (bytes32 ctxHash, address controller) = (ctxHashes[uint256(i)], controllers[uint256(i)]);
       if (controller != controllerEOA) {
         vm.expectEmit(controller);
-        emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, caller, "");
+        emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, address(0), caller, "");
       }
     }
 
@@ -134,7 +134,7 @@ contract REP15TransfersTest is REP15Test {
       (bytes32 ctxHash, address controller) = (ctxHashes[uint256(i)], controllers[uint256(i)]);
       if (controller != controllerEOA) {
         vm.expectEmit(controller);
-        emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, caller, "");
+        emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, address(0), caller, "");
       }
     }
 

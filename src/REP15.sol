@@ -393,7 +393,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     address controller = _contexts[ctxHash].controller;
     if (controller.code.length > 0) {
-      try IREP15ContextCallback(controller).onExecDetachContext(ctxHash, tokenId, operator, data) { } catch { }
+      try IREP15ContextCallback(controller).onExecDetachContext(ctxHash, tokenId, _tokenContext[tokenId][ctxHash].user, operator, data) { } catch { }
     }
   }
 

@@ -183,7 +183,7 @@ contract REP15ContextTest is REP15Test {
 
     if (controller == controllerSuccess) {
       vm.expectEmit(controllerSuccess);
-      emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, address(this), "request detach data");
+      emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, address(0), address(this), "request detach data");
     }
 
     target.requestDetachContext(ctxHash, tokenId, "request detach data");
@@ -207,7 +207,7 @@ contract REP15ContextTest is REP15Test {
 
     if (controller == controllerSuccess) {
       vm.expectEmit(controllerSuccess);
-      emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, controller, "request detach data");
+      emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, address(0), controller, "request detach data");
     }
 
     vm.prank(controller);
@@ -257,7 +257,7 @@ contract REP15ContextTest is REP15Test {
 
     if (controller == controllerSuccess) {
       vm.expectEmit(controllerSuccess);
-      emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, address(this), "exec detach data");
+      emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, address(0), address(this), "exec detach data");
     }
 
     target.execDetachContext(ctxHash, tokenId, "exec detach data");

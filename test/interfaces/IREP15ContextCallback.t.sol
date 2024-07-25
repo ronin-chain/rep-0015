@@ -6,6 +6,6 @@ import { IREP15ContextCallback } from "@ronin/rep-0015/interfaces/IREP15ContextC
 
 contract IREP15ContextCallbackTest is Test {
   function test_interfaceId() public pure {
-    assertEq(bytes32(type(IREP15ContextCallback).interfaceId), bytes32(bytes4(0x92625f0b)));
+    assertEq(bytes32(type(IREP15ContextCallback).interfaceId), bytes32(bytes4(0xad0491f1)));
   }
 }

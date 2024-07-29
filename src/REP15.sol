@@ -386,6 +386,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
       }
     }
 
+    address contextUser = _tokenContext[tokenId][ctxHash].user;
     delete _tokenContext[tokenId][ctxHash];
     _removeAttachedContext(tokenId, ctxHash);
 
@@ -393,7 +394,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     address controller = _contexts[ctxHash].controller;
     if (controller.code.length > 0) {
-      try IREP15ContextCallback(controller).onExecDetachContext(ctxHash, tokenId, _tokenContext[tokenId][ctxHash].user, operator, data) { } catch { }
+      try IREP15ContextCallback(controller).onExecDetachContext(ctxHash, tokenId, contextUser, operator, data) { } catch { }
     }
   }
 

@@ -150,7 +150,7 @@ contract REP15TransfersTest is REP15Test {
 
   function test_transferFrom_RevertWhen_CallerIsUnauthorized() public asUnauthorizedOwnershipManager {
     if (delegated) {
-      vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, caller, tokenId));
+      vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, caller, delegatee));
     } else {
       vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InsufficientApproval.selector, caller, tokenId));
     }

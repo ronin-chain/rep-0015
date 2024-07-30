@@ -51,10 +51,11 @@ interface IREP15Errors {
 
   /**
    * @dev Indicates a failure with the `operator`’s approval. Used in authorization of REP15.
-   * @param operator Address that may be allowed to operate on tokens without being their ownership manager.
-   * @param tokenId Identifier number of a token.
+   * @param operator Address that may be allowed to operate on tokens (managed by delegatee) without being
+   * their ownership manager.
+   * @param delegatee Address of the delegatee.
    */
-  error REP15InsufficientApproval(address operator, uint256 tokenId);
+  error REP15InsufficientApproval(address operator, address delegatee);
 
   /**
    * @dev Indicates a context is already attached. Used in attaching a token to a context.

@@ -149,7 +149,7 @@ contract REP15ContextTest is REP15Test {
 
     address caller = address(uint160(delegatee) - 1);
 
-    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, caller, tokenId));
+    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, caller, delegatee));
 
     vm.prank(caller);
     target.attachContext(ctxHash, tokenId, "attach data");
@@ -245,7 +245,7 @@ contract REP15ContextTest is REP15Test {
   {
     address caller = address(uint160(delegatee) - 1);
 
-    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, caller, tokenId));
+    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, caller, delegatee));
 
     vm.prank(caller);
     target.requestDetachContext(ctxHash, tokenId, "request detach data");
@@ -279,7 +279,7 @@ contract REP15ContextTest is REP15Test {
   {
     address caller = address(uint160(delegatee) - 1);
 
-    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, caller, tokenId));
+    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, caller, delegatee));
 
     vm.prank(caller);
     target.execDetachContext(ctxHash, tokenId, "exec detach data");

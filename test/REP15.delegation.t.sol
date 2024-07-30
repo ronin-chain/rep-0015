@@ -170,7 +170,7 @@ contract REP15OwnershipDelegationTest is REP15Test {
 
     vm.warp(block.timestamp + gapSinceStarted);
 
-    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, other, tokenId));
+    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, other, delegatee));
 
     vm.prank(other);
     target.acceptOwnershipDelegation(tokenId);
@@ -236,7 +236,7 @@ contract REP15OwnershipDelegationTest is REP15Test {
 
     vm.warp(block.timestamp + gapSinceAccepted);
 
-    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, other, tokenId));
+    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, other, delegatee));
 
     vm.prank(other);
     target.stopOwnershipDelegation(tokenId);

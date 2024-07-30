@@ -70,7 +70,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     if (!$delegation.isPending()) revert REP15NonexistentPendingOwnershipDelegation(tokenId);
 
-    _checkAuthorizedDelegatee(delegatee, _msgSender(), tokenId);
+    _checkAuthorizedDelegatee(delegatee, _msgSender());
 
     $delegation.delegated = true;
 
@@ -86,7 +86,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     if (!$delegation.isActive()) revert REP15InactiveOwnershipDelegation(tokenId);
 
-    _checkAuthorizedDelegatee(delegatee, _msgSender(), tokenId);
+    _checkAuthorizedDelegatee(delegatee, _msgSender());
 
     delete _delegations[tokenId];
 
@@ -429,11 +429,11 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   }
 
   /**
-   * @dev Checks if the `delegatee` is the owner or an approved operator of the `tokenId`.
+   * @dev Checks if the `operator` is the `delegatee` or an approved operator of the `delegatee`.
    */
-  function _checkAuthorizedDelegatee(address delegatee, address operator, uint256 tokenId) internal view virtual {
+  function _checkAuthorizedDelegatee(address delegatee, address operator) internal view virtual {
     if (!(delegatee == operator || isApprovedForAll(delegatee, operator))) {
-      revert REP15InsufficientApproval(operator, tokenId);
+      revert REP15InsufficientApproval(operator, delegatee);
     }
   }
 
@@ -449,7 +449,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
       return;
     }
 
-    _checkAuthorizedDelegatee($delegation.delegatee, operator, tokenId);
+    _checkAuthorizedDelegatee($delegation.delegatee, operator);
   }
 
   /**

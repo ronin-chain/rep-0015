@@ -134,7 +134,6 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
       _checkAuthorizedOwnershipManager(tokenId, operator);
       _requestDetachContext(ctxHash, tokenId, operator, data);
     } else {
-      // _detachContext(ctxHash, tokenId, operator, data, false, true);
       _detachContext({
         ctxHash: ctxHash,
         tokenId: tokenId,
@@ -154,7 +153,14 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     _checkAuthorizedOwnershipManager(tokenId, operator);
 
-    _detachContext(ctxHash, tokenId, operator, data, true, true);
+    _detachContext({
+      ctxHash: ctxHash,
+      tokenId: tokenId,
+      operator: operator,
+      data: data,
+      checkReadyForDetachment: true,
+      emitEvent: true
+    });
   }
 
   /**
@@ -348,7 +354,14 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     REP15Utils.TokenContext storage $tokenContext = _requireAttachedTokenContext(ctxHash, tokenId, true);
 
     if (!$tokenContext.locked) {
-      _detachContext(ctxHash, tokenId, operator, data, false, true);
+      _detachContext({
+        ctxHash: ctxHash,
+        tokenId: tokenId,
+        operator: operator,
+        data: data,
+        checkReadyForDetachment: false,
+        emitEvent: true
+      });
       return;
     }
 
@@ -394,7 +407,8 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     address controller = _contexts[ctxHash].controller;
     if (controller.code.length > 0) {
-      try IREP15ContextCallback(controller).onExecDetachContext(ctxHash, tokenId, contextUser, operator, data) { } catch { }
+      try IREP15ContextCallback(controller).onExecDetachContext(ctxHash, tokenId, contextUser, operator, data) { }
+        catch { }
     }
   }
 
@@ -421,7 +435,14 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
       bytes32[] storage attachedContexts = _attachedContexts[tokenId];
       for (int256 i = int256(attachedContexts.length) - 1; i >= 0; --i) {
         bytes32 ctxHash = attachedContexts[uint256(i)];
-        _detachContext(ctxHash, tokenId, auth, "", _tokenContext[tokenId][ctxHash].locked, false);
+        _detachContext({
+          ctxHash: ctxHash,
+          tokenId: tokenId,
+          operator: auth,
+          data: "",
+          checkReadyForDetachment: _tokenContext[tokenId][ctxHash].locked,
+          emitEvent: false
+        });
       }
     }
 

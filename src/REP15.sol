@@ -56,6 +56,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     $delegation.delegatee = delegatee;
     $delegation.until = until;
+    $delegation.delegated = false;
 
     emit OwnershipDelegationStarted(tokenId, delegatee, until);
   }

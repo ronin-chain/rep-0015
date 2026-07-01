@@ -13,4 +13,6 @@ docs/
 # Dotenv file
 .env
 
-.vscode/
+
+# Soldeer
+/dependencies

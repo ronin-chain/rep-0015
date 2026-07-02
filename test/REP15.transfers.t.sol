@@ -3,8 +3,8 @@ pragma solidity ^0.8.26;
 
 import { REP15Test, REP15, ControllerMock } from "./REP15.t.sol";
 import { IREP15Errors } from "@ronin/rep-0015/interfaces/IREP15Errors.sol";
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import { IERC721Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import { IERC721 } from "@openzeppelin-v5/token/ERC721/IERC721.sol";
+import { IERC721Errors } from "@openzeppelin-v5/interfaces/draft-IERC6093.sol";
 
 contract REP15TransfersTest is REP15Test {
   address internal immutable owner = address(this);

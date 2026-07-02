@@ -1,6 +1,6 @@
 pragma solidity ^0.8.26;
 
-import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { IERC165 } from "@openzeppelin-v5/utils/introspection/IERC165.sol";
 import { REP15 } from "../REP15.sol";
 import { IREP15Enumerable } from "../interfaces/IREP15Enumerable.sol";
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { IERC165, ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import { IERC721, ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import { IERC165, ERC165 } from "@openzeppelin-v5/utils/introspection/ERC165.sol";
+import { IERC721, ERC721 } from "@openzeppelin-v5/token/ERC721/ERC721.sol";
 import { IREP15 } from "./interfaces/IREP15.sol";
 import { IREP15Errors } from "./interfaces/IREP15Errors.sol";
 import { IREP15ContextCallback } from "./interfaces/IREP15ContextCallback.sol";
@@ -155,12 +155,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     _checkAuthorizedOwnershipManager(tokenId, operator);
 
     _detachContext({
-      ctxHash: ctxHash,
-      tokenId: tokenId,
-      operator: operator,
-      data: data,
-      checkReadyForDetachment: true,
-      emitEvent: true
+      ctxHash: ctxHash, tokenId: tokenId, operator: operator, data: data, checkReadyForDetachment: true, emitEvent: true
     });
   }
 
@@ -281,7 +276,10 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    *
    * Emits a {ContextUpdated} event.
    */
-  function _updateContext(bytes32 ctxHash, address controller, uint64 detachingDuration, address auth) internal virtual {
+  function _updateContext(bytes32 ctxHash, address controller, uint64 detachingDuration, address auth)
+    internal
+    virtual
+  {
     if (controller == address(0)) revert REP15InvalidController(address(0));
     if (detachingDuration > maxDetachingDuration()) revert REP15ExceededMaxDetachingDuration(detachingDuration);
 

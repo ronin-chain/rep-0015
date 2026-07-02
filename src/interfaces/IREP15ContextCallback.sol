@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { IERC165 } from "@openzeppelin-v5/utils/introspection/IERC165.sol";
 
 /// Note: the ERC-165 identifier for this interface is 0xad0491f1.
 interface IREP15ContextCallback is IERC165 {

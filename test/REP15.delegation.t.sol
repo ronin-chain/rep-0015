@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { REP15Test } from "./REP15.t.sol";
 import { IREP15 } from "@ronin/rep-0015/interfaces/IREP15.sol";
 import { IREP15Errors } from "@ronin/rep-0015/interfaces/IREP15Errors.sol";
-import { IERC721Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import { IERC721Errors } from "@openzeppelin-v5/interfaces/draft-IERC6093.sol";
 
 contract REP15OwnershipDelegationTest is REP15Test {
   address internal immutable delegatee = makeAddr("delegatee");

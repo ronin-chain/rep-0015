@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import { Initializable } from "@openzeppelin-upgradeable-v4/proxy/utils/Initializable.sol";
 import { ERC721Upgradeable } from "@openzeppelin-upgradeable-v4/token/ERC721/ERC721Upgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin-upgradeable-v4/security/PausableUpgradeable.sol";
-import { ContextUpgradeable } from "@openzeppelin-upgradeable-v4/utils/ContextUpgradeable.sol";
 import { ERC165Upgradeable } from "@openzeppelin-upgradeable-v4/utils/introspection/ERC165Upgradeable.sol";
 import { IERC165 } from "@openzeppelin-v4/utils/introspection/IERC165.sol";
 import { REP15Utils } from "./REP15Utils.sol";
@@ -11,7 +11,7 @@ import { IREP15 } from "./interfaces/IREP15.sol";
 import { IREP15Errors } from "./interfaces/IREP15Errors.sol";
 import { IREP15ContextCallback } from "./interfaces/IREP15ContextCallback.sol";
 
-contract REP15Upgradeable is ContextUpgradeable, PausableUpgradeable, ERC721Upgradeable, IREP15, IREP15Errors {
+contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeable, IREP15, IREP15Errors {
   using REP15Utils for REP15Utils.Delegation;
   using REP15Utils for REP15Utils.Context;
   using REP15Utils for REP15Utils.TokenContext;
@@ -34,6 +34,10 @@ contract REP15Upgradeable is ContextUpgradeable, PausableUpgradeable, ERC721Upgr
       $.slot := $$_REP15StorageLocation
     }
   }
+
+  function __REP15_init() internal onlyInitializing { }
+
+  function __REP15_init_unchained() internal onlyInitializing { }
 
   modifier onlyOwnershipManager(uint256 tokenId) {
     _checkAuthorizedOwnershipManager(tokenId, _msgSender());

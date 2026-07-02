@@ -16,4 +16,4 @@ docs/
 # Soldeer
 /dependencies
 
-./soljson-*.js
+./soljson-*.json

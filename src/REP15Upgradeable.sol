@@ -19,7 +19,7 @@ contract REP15Upgradeable is ContextUpgradeable, PausableUpgradeable, ERC721Upgr
   using REP15Utils for REP15Utils.Context;
   using REP15Utils for REP15Utils.TokenContext;
 
-  /// @custom:storage-location erc7201:axieinfinity.storage.AxieREP15
+  /// @custom:storage-location erc7201:axieinfinity.storage.REP15Upgradeable
   struct REP15Storage {
     mapping(uint256 tokenId => REP15Utils.Delegation) _delegations;
     mapping(bytes32 ctxHash => REP15Utils.Context) _contexts;
@@ -28,8 +28,8 @@ contract REP15Upgradeable is ContextUpgradeable, PausableUpgradeable, ERC721Upgr
     mapping(uint256 tokenId => mapping(bytes32 ctxHash => uint256 index)) _attachedContextsIndex;
   }
 
-  /// @dev Value is equal to keccak256(abi.encode(uint256(keccak256("axieinfinity.storage.AxieREP15")) - 1)) & ~bytes32(uint256(0xff))
-  bytes32 private constant $$_REP15StorageLocation = 0xb5220c26d99d59a01124b3cfc40f777f495fd65d2bf6213714d4f844d284b000;
+  /// @dev Value is equal to keccak256(abi.encode(uint256(keccak256("axieinfinity.storage.REP15Upgradeable")) - 1)) & ~bytes32(uint256(0xff))
+  bytes32 private constant $$_REP15StorageLocation = 0x2d8b96ed06e1e4e698120e91bb5a55b8ef8d39e3d6e06d21c184ee4f24dd6b00;
 
   /// @dev Return `REP15Storage` at storage slot `REP15StorageLocation`.
   function _getREP15Storage() private pure returns (REP15Storage storage $) {

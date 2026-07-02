@@ -191,7 +191,7 @@ contract REP15Upgradeable is ContextUpgradeable, PausableUpgradeable, ERC721Upgr
     whenNotPaused
   {
     _requireAttachedTokenContext({
-      ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: false
+      ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: true
     }).locked = lock;
 
     emit ContextLockUpdated(ctxHash, tokenId, lock);
@@ -206,7 +206,7 @@ contract REP15Upgradeable is ContextUpgradeable, PausableUpgradeable, ERC721Upgr
     whenNotPaused
   {
     _requireAttachedTokenContext({
-      ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: true
+      ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: false
     }).user = user;
 
     emit ContextUserAssigned(ctxHash, tokenId, user);
@@ -509,7 +509,7 @@ contract REP15Upgradeable is ContextUpgradeable, PausableUpgradeable, ERC721Upgr
       _detachAllContexts({ tokenId: tokenId, operator: _msgSender() });
     }
 
-    return super._update(to, tokenId, auth);
+    return super._update(to, tokenId, address(0));
   }
 
   /**

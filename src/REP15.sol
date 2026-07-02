@@ -21,9 +21,9 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
   mapping(uint256 tokenId => mapping(bytes32 ctxHash => REP15Utils.TokenContext)) private _tokenContext;
 
-  mapping(uint256 tokenId => bytes32[] ctxHashes) internal _attachedContexts;
+  mapping(uint256 tokenId => bytes32[] ctxHashes) private _attachedContexts;
 
-  mapping(uint256 tokenId => mapping(bytes32 ctxHash => uint256 index)) internal _attachedContextsIndex;
+  mapping(uint256 tokenId => mapping(bytes32 ctxHash => uint256 index)) private _attachedContextsIndex;
 
   constructor(uint64 maxDetachingDurationSeconds) {
     _MAX_DETACHING_DURATION = maxDetachingDurationSeconds;
@@ -340,11 +340,18 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     _addAttachedContext(tokenId, ctxHash);
 
     emit ContextAttached(ctxHash, tokenId);
+    _afterAttachContext(ctxHash, tokenId);
 
     if (controller.code.length > 0) {
       IREP15ContextCallback(controller).onAttached(ctxHash, tokenId, operator, data);
     }
   }
+
+  /**
+   * @dev Hook called after a context is attached to a token.
+   * Subclasses may override this to maintain additional enumeration data.
+   */
+  function _afterAttachContext(bytes32 ctxHash, uint256 tokenId) internal virtual { }
 
   /**
    * @dev Requests detachment of a context from a token.
@@ -403,6 +410,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     _removeAttachedContext(tokenId, ctxHash);
 
     if (emitEvent) emit ContextDetached(ctxHash, tokenId);
+    _afterDetachContext(ctxHash, tokenId);
 
     address controller = _contexts[ctxHash].controller;
     if (controller.code.length > 0) {
@@ -410,6 +418,12 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
         catch { }
     }
   }
+
+  /**
+   * @dev Hook called after a context is detached from a token.
+   * Subclasses may override this to maintain additional enumeration data.
+   */
+  function _afterDetachContext(bytes32 ctxHash, uint256 tokenId) internal virtual { }
 
   /**
    * @dev Overrides `transferFrom` to check against the ownership manager instead of the standard ERC721 approval.

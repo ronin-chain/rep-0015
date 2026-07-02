@@ -387,6 +387,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
     _addAttachedContext(tokenId, ctxHash);
 
     emit ContextAttached(ctxHash, tokenId);
+    _afterAttachContext(ctxHash, tokenId);
 
     _triggerContextCallback({
       controller: controller,
@@ -394,6 +395,12 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
       allowFail: false
     });
   }
+
+  /**
+   * @dev Hook called after a context is attached to a token.
+   * Subclasses may override this to maintain additional enumeration data.
+   */
+  function _afterAttachContext(bytes32 ctxHash, uint256 tokenId) internal virtual { }
 
   /**
    * @dev Requests detachment of a context from a token.
@@ -457,6 +464,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
     _removeAttachedContext(tokenId, ctxHash);
 
     if (emitEvent) emit ContextDetached(ctxHash, tokenId);
+    _afterDetachContext(ctxHash, tokenId);
 
     _triggerContextCallback({
       controller: $._contexts[ctxHash].controller,
@@ -466,6 +474,12 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
       allowFail: true
     });
   }
+
+  /**
+   * @dev Hook called after a context is detached from a token.
+   * Subclasses may override this to maintain additional enumeration data.
+   */
+  function _afterDetachContext(bytes32 ctxHash, uint256 tokenId) internal virtual { }
 
   /**
    * @dev Detaches all contexts from a token.

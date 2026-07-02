@@ -1,3 +1,4 @@
 @openzeppelin-v5/=dependencies/@openzeppelin-v5-5.0.2/contracts/
+@openzeppelin-upgradeable-v5/=dependencies/@openzeppelin-upgradeable-v5-5.0.2/contracts/
 forge-std/=dependencies/forge-std-1.8.2/src/
 @ronin/rep-0015/=src/

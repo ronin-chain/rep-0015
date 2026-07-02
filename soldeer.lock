@@ -1,4 +1,11 @@
 [[dependencies]]
+name = "@openzeppelin-upgradeable-v5"
+version = "5.0.2"
+url = "https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/archive/refs/tags/v5.0.2.zip"
+checksum = "4790d4f592cb46c868916ea50613997df1e28fd42b4d32e0999f0a4b9d1a7cf8"
+integrity = "91235eb528f76f19263c24f562c61e9890714690c9c667521af3b43ed645ad1b"
+
+[[dependencies]]
 name = "@openzeppelin-v5"
 version = "5.0.2"
 url = "https://github.com/OpenZeppelin/openzeppelin-contracts/archive/refs/tags/v5.0.2.zip"

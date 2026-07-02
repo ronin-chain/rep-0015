@@ -25,6 +25,7 @@ ronin-testnet = "https://saigon-testnet.roninchain.com/rpc"
 
 [dependencies]
 "@openzeppelin-v5" = { version = "5.0.2", url = "https://github.com/OpenZeppelin/openzeppelin-contracts/archive/refs/tags/v5.0.2.zip" }
+"@openzeppelin-upgradeable-v5" = {version = "5.0.2", url = "https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/archive/refs/tags/v5.0.2.zip"}
 forge-std = "1.8.2"
 
 [soldeer]

@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { Test, console } from "forge-std/Test.sol";
 import { REP15Upgradeable } from "@ronin/rep-0015/REP15Upgradeable.sol";
-import { ERC1967Proxy } from "@openzeppelin-v5/proxy/ERC1967/ERC1967Proxy.sol";
+import { ERC1967Proxy } from "@openzeppelin-v4/proxy/ERC1967/ERC1967Proxy.sol";
 import { ControllerMock } from "@ronin/rep-0015/mocks/ControllerMock.sol";
 
 contract REP15UpgradeableTarget is REP15Upgradeable {

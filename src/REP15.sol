@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { IERC165, ERC165 } from "@openzeppelin-v5/utils/introspection/ERC165.sol";
-import { IERC721, ERC721 } from "@openzeppelin-v5/token/ERC721/ERC721.sol";
+import { IERC165, ERC165 } from "@openzeppelin-v4/utils/introspection/ERC165.sol";
+import { IERC721, ERC721 } from "@openzeppelin-v4/token/ERC721/ERC721.sol";
 import { IREP15 } from "./interfaces/IREP15.sol";
 import { IREP15Errors } from "./interfaces/IREP15Errors.sol";
 import { IREP15ContextCallback } from "./interfaces/IREP15ContextCallback.sol";
@@ -40,7 +40,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @inheritdoc IREP15
    */
   function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) public virtual {
-    address owner = _requireOwned(tokenId);
+    address owner = ownerOf(tokenId);
 
     if (delegatee == owner || delegatee == address(0)) revert REP15InvalidDelegatee(delegatee);
 
@@ -52,7 +52,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
       revert REP15AlreadyDelegatedOwnership(tokenId, $delegation.delegatee, $delegation.until);
     }
 
-    ERC721._checkAuthorized(owner, _msgSender(), tokenId);
+    require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
 
     $delegation.delegatee = delegatee;
     $delegation.until = until;
@@ -228,7 +228,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     if ($delegation.isActive()) return _delegations[tokenId].delegatee;
 
-    return _requireOwned(tokenId);
+    return ownerOf(tokenId);
   }
 
   /**
@@ -412,40 +412,56 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   }
 
   /**
-   * @dev Overrides the internal `_update` function to revoke ownership delegation and detach all attached contexts
-   * in case of transfers or burns.
-   *
-   * If `auth` is non-zero and this function will check if `auth` is the ownership manager, an authorized operator of
-   * ownership manager, or the approved address for this NFT (if the token is not being delegated).
+   * @dev Overrides `transferFrom` to check against the ownership manager instead of the standard ERC721 approval.
    */
-  function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
-    if (auth != address(0)) {
-      _checkAuthorizedOwnershipManager(tokenId, auth);
-    }
+  function transferFrom(address from, address to, uint256 tokenId) public virtual override {
+    _checkAuthorizedOwnershipManager(tokenId, _msgSender());
+    _transfer(from, to, tokenId);
+  }
 
-    // Revoke ownership delegation and detach all attached contexts if the token is transferred or burned.
-    // If the token is being minted, `auth` will be zero.
-    if (auth != address(0) || to == address(0)) {
-      // Revoke current ownership delegation if any.
-      // No need to check if the delegation is active or emit the OwnershipDelegationStopped event.
-      delete _delegations[tokenId];
+  /**
+   * @dev Overrides `safeTransferFrom` to check against the ownership manager instead of the standard ERC721 approval.
+   */
+  function safeTransferFrom(address from, address to, uint256 tokenId) public virtual override {
+    _checkAuthorizedOwnershipManager(tokenId, _msgSender());
+    _safeTransfer(from, to, tokenId, "");
+  }
 
-      // Detach all attached contexts. No need to emit the ContextDetached event.
-      bytes32[] storage attachedContexts = _attachedContexts[tokenId];
+  /**
+   * @dev Overrides `safeTransferFrom` to check against the ownership manager instead of the standard ERC721 approval.
+   */
+  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
+    _checkAuthorizedOwnershipManager(tokenId, _msgSender());
+    _safeTransfer(from, to, tokenId, data);
+  }
+
+  /**
+   * @dev Revokes ownership delegation and detaches all attached contexts before transfers or burns.
+   * Mints (from == address(0)) are unaffected.
+   */
+  function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize)
+    internal
+    virtual
+    override
+  {
+    super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+
+    if (from != address(0)) {
+      delete _delegations[firstTokenId];
+
+      bytes32[] storage attachedContexts = _attachedContexts[firstTokenId];
       for (int256 i = int256(attachedContexts.length) - 1; i >= 0; --i) {
         bytes32 ctxHash = attachedContexts[uint256(i)];
         _detachContext({
           ctxHash: ctxHash,
-          tokenId: tokenId,
-          operator: auth,
+          tokenId: firstTokenId,
+          operator: _msgSender(),
           data: "",
-          checkReadyForDetachment: _tokenContext[tokenId][ctxHash].locked,
+          checkReadyForDetachment: _tokenContext[firstTokenId][ctxHash].locked,
           emitEvent: false
         });
       }
     }
-
-    return super._update(to, tokenId, address(0));
   }
 
   /**
@@ -465,7 +481,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     REP15Utils.Delegation storage $delegation = _delegations[tokenId];
 
     if (!$delegation.isActive()) {
-      ERC721._checkAuthorized(_ownerOf(tokenId), operator, tokenId);
+      require(_isApprovedOrOwner(operator, tokenId), "ERC721: caller is not token owner or approved");
       return;
     }
 

@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import { REP15Test } from "./REP15.t.sol";
 import { IREP15 } from "@ronin/rep-0015/interfaces/IREP15.sol";
 import { IREP15Errors } from "@ronin/rep-0015/interfaces/IREP15Errors.sol";
-import { IERC721Errors } from "@openzeppelin-v5/interfaces/draft-IERC6093.sol";
 
 contract REP15OwnershipDelegationTest is REP15Test {
   address internal immutable delegatee = makeAddr("delegatee");
@@ -96,7 +95,7 @@ contract REP15OwnershipDelegationTest is REP15Test {
   }
 
   function test_startDelegateOwnership_RevertWhen_CallerIsNotAuthorizedByOwner() public {
-    vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InsufficientApproval.selector, other, tokenId));
+    vm.expectRevert("ERC721: caller is not token owner or approved");
 
     vm.prank(other);
     target.startDelegateOwnership(tokenId, delegatee, uint64(block.timestamp + delegatingDuration));
@@ -118,7 +117,7 @@ contract REP15OwnershipDelegationTest is REP15Test {
   }
 
   function test_startDelegateOwnership_RevertWhen_TokenIsNonexistent() public {
-    vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, nonexistentTokenId));
+    vm.expectRevert("ERC721: invalid token ID");
     target.startDelegateOwnership(nonexistentTokenId, delegatee, uint64(block.timestamp + delegatingDuration));
   }
 

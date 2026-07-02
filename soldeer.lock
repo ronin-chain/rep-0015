@@ -1,16 +1,16 @@
 [[dependencies]]
-name = "@openzeppelin-upgradeable-v5"
-version = "5.0.2"
-url = "https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/archive/refs/tags/v5.0.2.zip"
-checksum = "4790d4f592cb46c868916ea50613997df1e28fd42b4d32e0999f0a4b9d1a7cf8"
-integrity = "91235eb528f76f19263c24f562c61e9890714690c9c667521af3b43ed645ad1b"
+name = "@openzeppelin-upgradeable-v4"
+version = "4.9.6"
+url = "https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/archive/refs/tags/v4.9.6.zip"
+checksum = "f438c623b1aa398337ec45cd92a4c13b0e0b079d28008f3c3be70f334ab6eba7"
+integrity = "4fb63c5fbd0558965e8ea80f620e97ff66871fca84d36b36d398ee7703adb9a1"
 
 [[dependencies]]
-name = "@openzeppelin-v5"
-version = "5.0.2"
-url = "https://github.com/OpenZeppelin/openzeppelin-contracts/archive/refs/tags/v5.0.2.zip"
-checksum = "ca49e0776066328da0087977864dfaef0d5e54a0ea9859236a7cd9ad02abb9e5"
-integrity = "1fed4dc049b6526ad14aa6c76fc6cd73e096b75615a96940a9e408cdf5b20be4"
+name = "@openzeppelin-v4"
+version = "4.9.6"
+url = "https://github.com/OpenZeppelin/openzeppelin-contracts/archive/refs/tags/v4.9.6.zip"
+checksum = "7af0307b0ad8560aa09405da10bd705fd189b544597695b2c3046b15ce637e47"
+integrity = "238ec0a0c3a7f70492088aef0115c5613d42f2ed43402eb408372f8bb1a5584f"
 
 [[dependencies]]
 name = "forge-std"

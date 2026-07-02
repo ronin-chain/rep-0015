@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { ERC721Upgradeable } from "@openzeppelin-upgradeable-v5/token/ERC721/ERC721Upgradeable.sol";
-import { PausableUpgradeable } from "@openzeppelin-upgradeable-v5/utils/PausableUpgradeable.sol";
-import {
-  AccessControlEnumerableUpgradeable
-} from "@openzeppelin-upgradeable-v5/access/extensions/AccessControlEnumerableUpgradeable.sol";
-import { ContextUpgradeable } from "@openzeppelin-upgradeable-v5/utils/ContextUpgradeable.sol";
-import { ERC165Upgradeable } from "@openzeppelin-upgradeable-v5/utils/introspection/ERC165Upgradeable.sol";
-import { IERC165 } from "@openzeppelin-v5/utils/introspection/IERC165.sol";
+import { ERC721Upgradeable } from "@openzeppelin-upgradeable-v4/token/ERC721/ERC721Upgradeable.sol";
+import { PausableUpgradeable } from "@openzeppelin-upgradeable-v4/security/PausableUpgradeable.sol";
+import { ContextUpgradeable } from "@openzeppelin-upgradeable-v4/utils/ContextUpgradeable.sol";
+import { ERC165Upgradeable } from "@openzeppelin-upgradeable-v4/utils/introspection/ERC165Upgradeable.sol";
+import { IERC165 } from "@openzeppelin-v4/utils/introspection/IERC165.sol";
 import { REP15Utils } from "./REP15Utils.sol";
 import { IREP15 } from "./interfaces/IREP15.sol";
 import { IREP15Errors } from "./interfaces/IREP15Errors.sol";
@@ -74,7 +71,7 @@ contract REP15Upgradeable is ContextUpgradeable, PausableUpgradeable, ERC721Upgr
       revert REP15AlreadyDelegatedOwnership(tokenId, $delegation.delegatee, $delegation.until);
     }
 
-    _checkAuthorized(owner, _msgSender(), tokenId);
+    require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
 
     $delegation.delegatee = delegatee;
     $delegation.until = until;
@@ -498,18 +495,44 @@ contract REP15Upgradeable is ContextUpgradeable, PausableUpgradeable, ERC721Upgr
   }
 
   /**
-   * @dev Override ERC721's _update function to detach all contexts and delegations before transfers/burns.
+   * @dev Overrides `transferFrom` to check against the ownership manager instead of the standard ERC721 approval.
    */
-  function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
-    address from = _ownerOf(tokenId);
+  function transferFrom(address from, address to, uint256 tokenId) public virtual override {
+    _checkAuthorizedOwnershipManager({ tokenId: tokenId, operator: _msgSender() });
+    _transfer(from, to, tokenId);
+  }
+
+  /**
+   * @dev Overrides `safeTransferFrom` to check against the ownership manager instead of the standard ERC721 approval.
+   */
+  function safeTransferFrom(address from, address to, uint256 tokenId) public virtual override {
+    _checkAuthorizedOwnershipManager({ tokenId: tokenId, operator: _msgSender() });
+    _safeTransfer(from, to, tokenId, "");
+  }
+
+  /**
+   * @dev Overrides `safeTransferFrom` to check against the ownership manager instead of the standard ERC721 approval.
+   */
+  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
+    _checkAuthorizedOwnershipManager({ tokenId: tokenId, operator: _msgSender() });
+    _safeTransfer(from, to, tokenId, data);
+  }
+
+  /**
+   * @dev Revokes ownership delegation and detaches all attached contexts before transfers or burns.
+   * Mints (from == address(0)) are unaffected.
+   */
+  function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize)
+    internal
+    virtual
+    override
+  {
+    super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
 
     if (from != address(0)) {
-      _checkAuthorizedOwnershipManager({ tokenId: tokenId, operator: auth == address(0) ? _msgSender() : auth });
-      _removeDelegations(tokenId);
-      _detachAllContexts({ tokenId: tokenId, operator: _msgSender() });
+      _removeDelegations(firstTokenId);
+      _detachAllContexts({ tokenId: firstTokenId, operator: _msgSender() });
     }
-
-    return super._update(to, tokenId, address(0));
   }
 
   /**
@@ -529,7 +552,7 @@ contract REP15Upgradeable is ContextUpgradeable, PausableUpgradeable, ERC721Upgr
     REP15Utils.Delegation storage $delegation = _getREP15Storage()._delegations[tokenId];
 
     if (!$delegation.isActive()) {
-      _checkAuthorized(ownerOf(tokenId), operator, tokenId);
+      require(_isApprovedOrOwner(operator, tokenId), "ERC721: caller is not token owner or approved");
       return;
     }
 

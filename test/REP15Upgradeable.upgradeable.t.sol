@@ -3,8 +3,7 @@ pragma solidity ^0.8.26;
 
 import { Test } from "forge-std/Test.sol";
 import { REP15UpgradeableTarget } from "./REP15Upgradeable.t.sol";
-import { ERC1967Proxy } from "@openzeppelin-v5/proxy/ERC1967/ERC1967Proxy.sol";
-import { Initializable } from "@openzeppelin-upgradeable-v5/proxy/utils/Initializable.sol";
+import { ERC1967Proxy } from "@openzeppelin-v4/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract REP15UpgradeableInitializerTest is Test {
   string constant NAME = "Ownership Delegation and Context for ERC-721";
@@ -13,7 +12,7 @@ contract REP15UpgradeableInitializerTest is Test {
   function test_initialize_RevertWhen_CalledOnImplementation() public {
     REP15UpgradeableTarget impl = new REP15UpgradeableTarget();
 
-    vm.expectRevert(Initializable.InvalidInitialization.selector);
+    vm.expectRevert("Initializable: contract is already initialized");
     impl.initialize(NAME, SYMBOL);
   }
 
@@ -23,7 +22,7 @@ contract REP15UpgradeableInitializerTest is Test {
       address(new ERC1967Proxy(address(impl), abi.encodeCall(impl.initialize, (NAME, SYMBOL))))
     );
 
-    vm.expectRevert(Initializable.InvalidInitialization.selector);
+    vm.expectRevert("Initializable: contract is already initialized");
     proxy.initialize(NAME, SYMBOL);
   }
 

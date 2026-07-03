@@ -14,19 +14,10 @@ contract REP15UpgradeableTarget is REP15Upgradeable {
 
   function initialize(string memory name, string memory symbol) public initializer {
     __ERC721_init(name, symbol);
-    __Pausable_init();
   }
 
   function mint(address to, uint256 tokenId) public {
     _mint(to, tokenId);
-  }
-
-  function pause() public {
-    _pause();
-  }
-
-  function unpause() public {
-    _unpause();
   }
 
   // Override to return a test-friendly value; the base hardcodes 365 days.

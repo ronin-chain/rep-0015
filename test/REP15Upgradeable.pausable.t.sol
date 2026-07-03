@@ -1,19 +1,66 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { REP15UpgradeableTest } from "./REP15Upgradeable.t.sol";
-import { PausableUpgradeable } from "@openzeppelin-upgradeable-v4/security/PausableUpgradeable.sol";
+import { Test } from "forge-std/Test.sol";
+import { ERC1967Proxy } from "@openzeppelin-v4/proxy/ERC1967/ERC1967Proxy.sol";
+import { REP15PausableUpgradeable } from "@ronin/rep-0015/extensions/REP15PausableUpgradeable.sol";
+import { ControllerMock } from "@ronin/rep-0015/mocks/ControllerMock.sol";
 
-contract REP15UpgradeablePausableTest is REP15UpgradeableTest {
+contract REP15PausableUpgradeableTarget is REP15PausableUpgradeable {
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  function initialize(string memory name, string memory symbol) public initializer {
+    __ERC721_init(name, symbol);
+    __Pausable_init();
+  }
+
+  function mint(address to, uint256 tokenId) public {
+    _mint(to, tokenId);
+  }
+
+  function pause() public {
+    _pause();
+  }
+
+  function unpause() public {
+    _unpause();
+  }
+
+  function maxDetachingDuration() public pure override returns (uint64) {
+    return 3 days;
+  }
+}
+
+contract REP15UpgradeablePausableTest is Test {
+  string constant NAME = "Ownership Delegation and Context for ERC-721";
+  string constant SYMBOL = "REP15";
+  uint64 constant DETACHING_DURATION = 1 days;
+
+  REP15PausableUpgradeableTarget internal target;
+
+  uint256 internal constant tokenId = 42;
+
+  address internal immutable controllerEOA = makeAddr("controllerEOA");
+  address internal immutable controllerSuccess = address(new ControllerMock(false));
+
   // A context in ATTACHED | UNLOCKED | NOT_REQUESTED state owned by controllerEOA,
   // used to supply a valid ctxHash for methods guarded by onlyController before whenNotPaused.
   bytes32 internal ctxHash;
 
-  function setUp() public override {
-    super.setUp();
-    _initializeContexts(0);
+  function setUp() public {
+    vm.warp(vm.unixTime());
 
-    ctxHash = allContexts[controllerEOA][STATE_ATTACHED_UNLOCKED_NOT_REQUESTED];
+    REP15PausableUpgradeableTarget impl = new REP15PausableUpgradeableTarget();
+    target = REP15PausableUpgradeableTarget(
+      address(new ERC1967Proxy(address(impl), abi.encodeCall(impl.initialize, (NAME, SYMBOL))))
+    );
+
+    target.mint(address(this), tokenId);
+    ctxHash = target.createContext(controllerEOA, DETACHING_DURATION, "usecase 0");
+    target.attachContext(ctxHash, tokenId, "test-init");
 
     target.pause();
   }
@@ -35,17 +82,17 @@ contract REP15UpgradeablePausableTest is REP15UpgradeableTest {
 
   function test_createContext_RevertWhen_Paused() public {
     vm.expectRevert("Pausable: paused");
-    target.createContext(controllerEOA, detachingDuration, "new context");
+    target.createContext(controllerEOA, DETACHING_DURATION, "new context");
   }
 
   function test_updateContext_RevertWhen_Paused() public {
     vm.expectRevert("Pausable: paused");
     vm.prank(controllerEOA);
-    target.updateContext(ctxHash, controllerEOA, detachingDuration);
+    target.updateContext(ctxHash, controllerEOA, DETACHING_DURATION);
   }
 
-  // attachContext has modifier order: onlyOwnershipManager(tokenId) → whenNotPaused.
-  // Calling as address(this) (token owner) passes the ownership check, then hits the pause guard.
+  // attachContext has modifier order: whenNotPaused → onlyOwnershipManager(tokenId).
+  // Calling as address(this) (token owner) passes the ownership check after the pause guard fires.
   function test_attachContext_RevertWhen_Paused() public {
     vm.expectRevert("Pausable: paused");
     target.attachContext(bytes32(0), tokenId, "");
@@ -56,21 +103,21 @@ contract REP15UpgradeablePausableTest is REP15UpgradeableTest {
     target.requestDetachContext(ctxHash, tokenId, "");
   }
 
-  // execDetachContext has modifier order: onlyOwnershipManager(tokenId) → whenNotPaused.
+  // execDetachContext has modifier order: whenNotPaused → onlyOwnershipManager(tokenId).
   function test_execDetachContext_RevertWhen_Paused() public {
     vm.expectRevert("Pausable: paused");
     target.execDetachContext(bytes32(0), tokenId, "");
   }
 
-  // setContextLock has modifier order: onlyController(ctxHash) → whenNotPaused.
-  // Calling as the controller of ctxHash passes the controller check, then hits the pause guard.
+  // setContextLock has modifier order: whenNotPaused → onlyController(ctxHash).
+  // Calling as the controller of ctxHash, the pause guard fires first.
   function test_setContextLock_RevertWhen_Paused() public {
     vm.expectRevert("Pausable: paused");
     vm.prank(controllerEOA);
     target.setContextLock(ctxHash, tokenId, true);
   }
 
-  // setContextUser has modifier order: onlyController(ctxHash) → whenNotPaused.
+  // setContextUser has modifier order: whenNotPaused → onlyController(ctxHash).
   function test_setContextUser_RevertWhen_Paused() public {
     vm.expectRevert("Pausable: paused");
     vm.prank(controllerEOA);

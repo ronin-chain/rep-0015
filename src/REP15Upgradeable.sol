@@ -3,7 +3,6 @@ pragma solidity ^0.8.17;
 
 import { Initializable } from "@openzeppelin-upgradeable-v4/proxy/utils/Initializable.sol";
 import { ERC721Upgradeable } from "@openzeppelin-upgradeable-v4/token/ERC721/ERC721Upgradeable.sol";
-import { PausableUpgradeable } from "@openzeppelin-upgradeable-v4/security/PausableUpgradeable.sol";
 import { ERC165Upgradeable } from "@openzeppelin-upgradeable-v4/utils/introspection/ERC165Upgradeable.sol";
 import { IERC165 } from "@openzeppelin-v4/utils/introspection/IERC165.sol";
 import { REP15Utils } from "./REP15Utils.sol";
@@ -11,7 +10,7 @@ import { IREP15 } from "./interfaces/IREP15.sol";
 import { IREP15Errors } from "./interfaces/IREP15Errors.sol";
 import { IREP15ContextCallback } from "./interfaces/IREP15ContextCallback.sol";
 
-contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeable, IREP15, IREP15Errors {
+contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Errors {
   using REP15Utils for REP15Utils.Delegation;
   using REP15Utils for REP15Utils.Context;
   using REP15Utils for REP15Utils.TokenContext;
@@ -62,7 +61,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
   /**
    * @inheritdoc IREP15
    */
-  function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) external whenNotPaused {
+  function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) public virtual {
     address owner = ownerOf(tokenId);
 
     if (delegatee == owner || delegatee == address(0)) revert REP15InvalidDelegatee(delegatee);
@@ -87,7 +86,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
   /**
    * @inheritdoc IREP15
    */
-  function acceptOwnershipDelegation(uint256 tokenId) public virtual whenNotPaused {
+  function acceptOwnershipDelegation(uint256 tokenId) public virtual {
     REP15Utils.Delegation storage $delegation = _requirePendingDelegation(tokenId);
     address delegatee = $delegation.delegatee;
 
@@ -101,7 +100,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
   /**
    * @inheritdoc IREP15
    */
-  function stopOwnershipDelegation(uint256 tokenId) public virtual whenNotPaused {
+  function stopOwnershipDelegation(uint256 tokenId) public virtual {
     REP15Utils.Delegation storage $delegation = _requireActiveDelegation(tokenId);
     address delegatee = $delegation.delegatee;
 
@@ -116,8 +115,8 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
    * @inheritdoc IREP15
    */
   function createContext(address controller, uint64 detachingDuration, bytes calldata ctxMsg)
-    external
-    whenNotPaused
+    public
+    virtual
     returns (bytes32 ctxHash)
   {
     ctxHash = keccak256(abi.encode(_msgSender(), ctxMsg));
@@ -128,7 +127,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
   /**
    * @inheritdoc IREP15
    */
-  function updateContext(bytes32 ctxHash, address newController, uint64 newDetachingDuration) external whenNotPaused {
+  function updateContext(bytes32 ctxHash, address newController, uint64 newDetachingDuration) public virtual {
     _updateContext(ctxHash, newController, newDetachingDuration, _msgSender());
   }
 
@@ -137,8 +136,8 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
    */
   function attachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data)
     public
+    virtual
     onlyOwnershipManager(tokenId)
-    whenNotPaused
   {
     _attachContext({ ctxHash: ctxHash, tokenId: tokenId, operator: _msgSender(), data: data });
   }
@@ -146,7 +145,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
   /**
    * @inheritdoc IREP15
    */
-  function requestDetachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) external whenNotPaused {
+  function requestDetachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) public virtual {
     address operator = _msgSender();
 
     if (operator != _getREP15Storage()._contexts[ctxHash].controller) {
@@ -168,9 +167,9 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
    * @inheritdoc IREP15
    */
   function execDetachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data)
-    external
+    public
+    virtual
     onlyOwnershipManager(tokenId)
-    whenNotPaused
   {
     _detachContext({
       ctxHash: ctxHash,
@@ -189,7 +188,6 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
     public
     virtual
     onlyController(ctxHash)
-    whenNotPaused
   {
     _requireAttachedTokenContext({
       ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: true
@@ -202,9 +200,9 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, PausableUpgradeab
    * @inheritdoc IREP15
    */
   function setContextUser(bytes32 ctxHash, uint256 tokenId, address user)
-    external
+    public
+    virtual
     onlyController(ctxHash)
-    whenNotPaused
   {
     _requireAttachedTokenContext({
       ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: false

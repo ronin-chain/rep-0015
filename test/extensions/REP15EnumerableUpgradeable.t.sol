@@ -13,7 +13,6 @@ contract REP15EnumerableUpgradeableTarget is REP15EnumerableUpgradeable {
 
   function initialize(string memory name, string memory symbol) public initializer {
     __ERC721_init(name, symbol);
-    __Pausable_init();
   }
 
   function mint(address to, uint256 tokenId) public {

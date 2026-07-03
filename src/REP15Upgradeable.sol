@@ -91,7 +91,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @inheritdoc IREP15
    */
-  function acceptOwnershipDelegation(uint256 tokenId) public virtual {
+  function acceptOwnershipDelegation(uint256 tokenId) external virtual {
     _beforeOwnershipDelegation();
     REP15Utils.Delegation storage $delegation = _requirePendingDelegation(tokenId);
     address delegatee = $delegation.delegatee;
@@ -106,7 +106,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @inheritdoc IREP15
    */
-  function stopOwnershipDelegation(uint256 tokenId) public virtual {
+  function stopOwnershipDelegation(uint256 tokenId) external virtual {
     _beforeOwnershipDelegation();
     REP15Utils.Delegation storage $delegation = _requireActiveDelegation(tokenId);
     address delegatee = $delegation.delegatee;
@@ -196,15 +196,10 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @inheritdoc IREP15
    */
-  function setContextLock(bytes32 ctxHash, uint256 tokenId, bool lock)
-    public
-    virtual
-    onlyController(ctxHash)
-  {
+  function setContextLock(bytes32 ctxHash, uint256 tokenId, bool lock) external virtual onlyController(ctxHash) {
     _beforeTokenContext();
-    _requireAttachedTokenContext({
-      ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: true
-    }).locked = lock;
+    _requireAttachedTokenContext({ ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: true }).locked =
+      lock;
 
     emit ContextLockUpdated(ctxHash, tokenId, lock);
   }
@@ -212,15 +207,10 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @inheritdoc IREP15
    */
-  function setContextUser(bytes32 ctxHash, uint256 tokenId, address user)
-    external
-    virtual
-    onlyController(ctxHash)
-  {
+  function setContextUser(bytes32 ctxHash, uint256 tokenId, address user) external virtual onlyController(ctxHash) {
     _beforeTokenContext();
-    _requireAttachedTokenContext({
-      ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: false
-    }).user = user;
+    _requireAttachedTokenContext({ ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: false }).user =
+    user;
 
     emit ContextUserAssigned(ctxHash, tokenId, user);
   }
@@ -235,7 +225,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @inheritdoc IREP15
    */
-  function getContext(bytes32 ctxHash) public view virtual returns (address controller, uint64 detachingDuration) {
+  function getContext(bytes32 ctxHash) external view virtual returns (address controller, uint64 detachingDuration) {
     REP15Utils.Context storage $context = _requireExistentContext(ctxHash);
 
     return ($context.controller, $context.detachingDuration);
@@ -244,28 +234,28 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @inheritdoc IREP15
    */
-  function isAttachedWithContext(bytes32 ctxHash, uint256 tokenId) public view virtual returns (bool) {
+  function isAttachedWithContext(bytes32 ctxHash, uint256 tokenId) external view virtual returns (bool) {
     return _getREP15Storage()._tokenContext[tokenId][ctxHash].attached;
   }
 
   /**
    * @inheritdoc IREP15
    */
-  function getContextUser(bytes32 ctxHash, uint256 tokenId) public view virtual returns (address user) {
+  function getContextUser(bytes32 ctxHash, uint256 tokenId) external view virtual returns (address user) {
     return _getREP15Storage()._tokenContext[tokenId][ctxHash].user;
   }
 
   /**
    * @inheritdoc IREP15
    */
-  function isTokenContextLocked(bytes32 ctxHash, uint256 tokenId) public view virtual returns (bool) {
+  function isTokenContextLocked(bytes32 ctxHash, uint256 tokenId) external view virtual returns (bool) {
     return _getREP15Storage()._tokenContext[tokenId][ctxHash].locked;
   }
 
   /**
    * @inheritdoc IREP15
    */
-  function getOwnershipManager(uint256 tokenId) public view virtual returns (address manager) {
+  function getOwnershipManager(uint256 tokenId) external view virtual returns (address manager) {
     REP15Utils.Delegation storage $delegation = _getREP15Storage()._delegations[tokenId];
 
     if ($delegation.isActive()) return $delegation.delegatee;
@@ -276,7 +266,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @inheritdoc IREP15
    */
-  function getOwnershipDelegatee(uint256 tokenId) public view returns (address delegatee, uint64 until) {
+  function getOwnershipDelegatee(uint256 tokenId) external view returns (address delegatee, uint64 until) {
     REP15Utils.Delegation storage $delegation = _requireActiveDelegation(tokenId);
 
     return ($delegation.delegatee, $delegation.until);
@@ -285,7 +275,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @inheritdoc IREP15
    */
-  function pendingOwnershipDelegatee(uint256 tokenId) public view returns (address delegatee, uint64 until) {
+  function pendingOwnershipDelegatee(uint256 tokenId) external view returns (address delegatee, uint64 until) {
     REP15Utils.Delegation storage $delegation = _requirePendingDelegation(tokenId);
 
     return ($delegation.delegatee, $delegation.until);

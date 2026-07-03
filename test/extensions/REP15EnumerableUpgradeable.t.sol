@@ -3,7 +3,10 @@ pragma solidity ^0.8.26;
 
 import { Test } from "forge-std/Test.sol";
 import { ERC1967Proxy } from "@openzeppelin-v4/proxy/ERC1967/ERC1967Proxy.sol";
-import { REP15Upgradeable, REP15EnumerableUpgradeable } from "@ronin/rep-0015/extensions/REP15EnumerableUpgradeable.sol";
+import {
+  REP15Upgradeable,
+  REP15EnumerableUpgradeable
+} from "@ronin/rep-0015/extensions/REP15EnumerableUpgradeable.sol";
 
 contract REP15EnumerableUpgradeableTarget is REP15EnumerableUpgradeable {
   /// @custom:oz-upgrades-unsafe-allow constructor

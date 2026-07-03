@@ -26,10 +26,22 @@ abstract contract REP15EnumerableUpgradeable is Initializable, REP15Upgradeable,
     }
   }
 
+  function __REP15Enumerable_init() internal onlyInitializing {
+    __REP15Enumerable_init_unchained();
+  }
+
+  function __REP15Enumerable_init_unchained() internal onlyInitializing { }
+
   /**
    * @inheritdoc IERC165
    */
-  function supportsInterface(bytes4 interfaceId) public view virtual override(IERC165, REP15Upgradeable) returns (bool) {
+  function supportsInterface(bytes4 interfaceId)
+    public
+    view
+    virtual
+    override(IERC165, REP15Upgradeable)
+    returns (bool)
+  {
     return interfaceId == type(IREP15Enumerable).interfaceId || super.supportsInterface(interfaceId);
   }
 

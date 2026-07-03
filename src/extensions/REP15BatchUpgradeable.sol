@@ -6,6 +6,12 @@ import { REP15Upgradeable } from "../REP15Upgradeable.sol";
 import { IREP15Batch } from "../interfaces/IREP15Batch.sol";
 
 contract REP15BatchUpgradeable is Initializable, REP15Upgradeable, IREP15Batch {
+  function __REP15Batch_init() internal onlyInitializing {
+    __REP15Batch_init_unchained();
+  }
+
+  function __REP15Batch_init_unchained() internal onlyInitializing { }
+
   /**
    * @inheritdoc IREP15Batch
    */

@@ -91,8 +91,8 @@ contract REP15UpgradeablePausableTest is Test {
     target.updateContext(ctxHash, controllerEOA, DETACHING_DURATION);
   }
 
-  // attachContext has modifier order: whenNotPaused → onlyOwnershipManager(tokenId).
-  // Calling as address(this) (token owner) passes the ownership check after the pause guard fires.
+  // attachContext has modifier order: onlyOwnershipManager(tokenId) → _beforeTokenContext hook.
+  // Calling as address(this) (token owner) passes the ownership check, then hits the pause guard.
   function test_attachContext_RevertWhen_Paused() public {
     vm.expectRevert("Pausable: paused");
     target.attachContext(bytes32(0), tokenId, "");
@@ -103,21 +103,21 @@ contract REP15UpgradeablePausableTest is Test {
     target.requestDetachContext(ctxHash, tokenId, "");
   }
 
-  // execDetachContext has modifier order: whenNotPaused → onlyOwnershipManager(tokenId).
+  // execDetachContext has modifier order: onlyOwnershipManager(tokenId) → _beforeTokenContext hook.
   function test_execDetachContext_RevertWhen_Paused() public {
     vm.expectRevert("Pausable: paused");
     target.execDetachContext(bytes32(0), tokenId, "");
   }
 
-  // setContextLock has modifier order: whenNotPaused → onlyController(ctxHash).
-  // Calling as the controller of ctxHash, the pause guard fires first.
+  // setContextLock has modifier order: onlyController(ctxHash) → _beforeTokenContext hook.
+  // Calling as the controller of ctxHash passes the controller check, then hits the pause guard.
   function test_setContextLock_RevertWhen_Paused() public {
     vm.expectRevert("Pausable: paused");
     vm.prank(controllerEOA);
     target.setContextLock(ctxHash, tokenId, true);
   }
 
-  // setContextUser has modifier order: whenNotPaused → onlyController(ctxHash).
+  // setContextUser has modifier order: onlyController(ctxHash) → _beforeTokenContext hook.
   function test_setContextUser_RevertWhen_Paused() public {
     vm.expectRevert("Pausable: paused");
     vm.prank(controllerEOA);

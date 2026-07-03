@@ -38,6 +38,10 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
 
   function __REP15_init_unchained() internal onlyInitializing { }
 
+  function _beforeOwnershipDelegation() internal virtual { }
+
+  function _beforeTokenContext() internal virtual { }
+
   modifier onlyOwnershipManager(uint256 tokenId) {
     _checkAuthorizedOwnershipManager(tokenId, _msgSender());
     _;
@@ -61,7 +65,8 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @inheritdoc IREP15
    */
-  function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) public virtual {
+  function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) external virtual {
+    _beforeOwnershipDelegation();
     address owner = ownerOf(tokenId);
 
     if (delegatee == owner || delegatee == address(0)) revert REP15InvalidDelegatee(delegatee);
@@ -87,6 +92,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
    * @inheritdoc IREP15
    */
   function acceptOwnershipDelegation(uint256 tokenId) public virtual {
+    _beforeOwnershipDelegation();
     REP15Utils.Delegation storage $delegation = _requirePendingDelegation(tokenId);
     address delegatee = $delegation.delegatee;
 
@@ -101,6 +107,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
    * @inheritdoc IREP15
    */
   function stopOwnershipDelegation(uint256 tokenId) public virtual {
+    _beforeOwnershipDelegation();
     REP15Utils.Delegation storage $delegation = _requireActiveDelegation(tokenId);
     address delegatee = $delegation.delegatee;
 
@@ -115,10 +122,11 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
    * @inheritdoc IREP15
    */
   function createContext(address controller, uint64 detachingDuration, bytes calldata ctxMsg)
-    public
+    external
     virtual
     returns (bytes32 ctxHash)
   {
+    _beforeTokenContext();
     ctxHash = keccak256(abi.encode(_msgSender(), ctxMsg));
 
     _updateContext(ctxHash, controller, detachingDuration, address(0));
@@ -127,7 +135,8 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @inheritdoc IREP15
    */
-  function updateContext(bytes32 ctxHash, address newController, uint64 newDetachingDuration) public virtual {
+  function updateContext(bytes32 ctxHash, address newController, uint64 newDetachingDuration) external virtual {
+    _beforeTokenContext();
     _updateContext(ctxHash, newController, newDetachingDuration, _msgSender());
   }
 
@@ -139,13 +148,15 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
     virtual
     onlyOwnershipManager(tokenId)
   {
+    _beforeTokenContext();
     _attachContext({ ctxHash: ctxHash, tokenId: tokenId, operator: _msgSender(), data: data });
   }
 
   /**
    * @inheritdoc IREP15
    */
-  function requestDetachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) public virtual {
+  function requestDetachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) external virtual {
+    _beforeTokenContext();
     address operator = _msgSender();
 
     if (operator != _getREP15Storage()._contexts[ctxHash].controller) {
@@ -167,10 +178,11 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
    * @inheritdoc IREP15
    */
   function execDetachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data)
-    public
+    external
     virtual
     onlyOwnershipManager(tokenId)
   {
+    _beforeTokenContext();
     _detachContext({
       ctxHash: ctxHash,
       tokenId: tokenId,
@@ -189,6 +201,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
     virtual
     onlyController(ctxHash)
   {
+    _beforeTokenContext();
     _requireAttachedTokenContext({
       ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: true
     }).locked = lock;
@@ -200,10 +213,11 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
    * @inheritdoc IREP15
    */
   function setContextUser(bytes32 ctxHash, uint256 tokenId, address user)
-    public
+    external
     virtual
     onlyController(ctxHash)
   {
+    _beforeTokenContext();
     _requireAttachedTokenContext({
       ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: false
     }).user = user;

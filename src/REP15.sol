@@ -174,6 +174,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @inheritdoc IREP15
    */
   function setContextUser(bytes32 ctxHash, uint256 tokenId, address user) external virtual {
+    if (user == address(0)) revert REP15InvalidUser(address(0));
     _checkAuthorizedController(_msgSender(), ctxHash);
 
     _requireAttachedTokenContext(ctxHash, tokenId, false).user = user;

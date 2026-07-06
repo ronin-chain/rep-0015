@@ -73,6 +73,8 @@ interface IREP15 is IERC165 {
 
   /// @notice Requests to detach a token from a certain context.
   /// @dev See "requestDetachContext rules" in "Token (Un)lock Rules".
+  /// As an extension to the spec, the context controller may call this function directly to force-detach the token
+  /// immediately, bypassing the ownership manager requirement and the detaching duration.
   /// @param ctxHash Hash of a context.
   /// @param tokenId The NFT to be detached.
   /// @param data    Additional data with no specified format, MUST be sent unaltered in call to the {IREP15ContextCallback} hook(s) on controller.
@@ -95,6 +97,7 @@ interface IREP15 is IERC165 {
   /// @dev MUST revert if the method caller is not context controller.
   /// MUST revert if the context is non-existent.
   /// MUST revert if the token is not attached to the context.
+  /// MUST revert if new user address is zero address.
   /// MUST emit the event {ContextUserAssigned} on success.
   /// @param ctxHash Hash of a context.
   /// @param tokenId The NFT to be update.
@@ -143,11 +146,15 @@ interface IREP15 is IERC165 {
 
   /// @notice Accepts ownership delegation request.
   /// @dev See "acceptOwnershipDelegation rules" in "Ownership Delegation Rules".
+  /// Authorization of the delegatee's operators uses {IERC721.setApprovalForAll} only;
+  /// individual token approvals via {IERC721.approve} are not recognized.
   /// @param tokenId The NFT to be accepted.
   function acceptOwnershipDelegation(uint256 tokenId) external;
 
   /// @notice Stops the current ownership delegation.
   /// @dev See "stopOwnershipDelegation rules" in "Ownership Delegation Rules".
+  /// Authorization of the delegatee's operators uses {IERC721.setApprovalForAll} only;
+  /// individual token approvals via {IERC721.approve} are not recognized.
   /// @param tokenId The NFT to be stopped.
   function stopOwnershipDelegation(uint256 tokenId) external;
 }

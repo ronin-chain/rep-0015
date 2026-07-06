@@ -26,6 +26,11 @@ abstract contract REP15EnumerableUpgradeable is Initializable, REP15Upgradeable,
     }
   }
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
   function __REP15Enumerable_init() internal onlyInitializing {
     __REP15Enumerable_init_unchained();
   }

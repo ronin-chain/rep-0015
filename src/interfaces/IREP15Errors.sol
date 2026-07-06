@@ -105,4 +105,10 @@ interface IREP15Errors {
    * @param tokenId Identifier number of the token.
    */
   error REP15NotRequestedForDetachment(bytes32 ctxHash, uint256 tokenId);
+
+  /**
+   * @dev Indicates a failure with the `user`. For example, the user is zero address.
+   * @param user Address of the user.
+   */
+  error REP15InvalidUser(address user);
 }

@@ -6,6 +6,11 @@ import { PausableUpgradeable } from "@openzeppelin-upgradeable-v4/security/Pausa
 import { REP15Upgradeable } from "../REP15Upgradeable.sol";
 
 abstract contract REP15PausableUpgradeable is Initializable, REP15Upgradeable, PausableUpgradeable {
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
   function __REP15Pausable_init() internal onlyInitializing {
     __Pausable_init();
     __REP15Pausable_init_unchained();

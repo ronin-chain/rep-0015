@@ -34,6 +34,11 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
     }
   }
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
   function __REP15_init() internal onlyInitializing { }
 
   function __REP15_init_unchained() internal onlyInitializing { }
@@ -208,6 +213,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
    * @inheritdoc IREP15
    */
   function setContextUser(bytes32 ctxHash, uint256 tokenId, address user) external virtual onlyController(ctxHash) {
+    if (user == address(0)) revert REP15InvalidUser(address(0));
     _beforeTokenContext();
     _requireAttachedTokenContext({ ctxHash: ctxHash, tokenId: tokenId, checkNotRequestedForDetachment: false }).user =
     user;

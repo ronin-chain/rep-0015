@@ -6,6 +6,11 @@ import { REP15Upgradeable } from "../REP15Upgradeable.sol";
 import { IREP15Batch } from "../interfaces/IREP15Batch.sol";
 
 contract REP15BatchUpgradeable is Initializable, REP15Upgradeable, IREP15Batch {
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
   function __REP15Batch_init() internal onlyInitializing {
     __REP15Batch_init_unchained();
   }

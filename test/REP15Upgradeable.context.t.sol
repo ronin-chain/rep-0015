@@ -405,6 +405,13 @@ contract REP15UpgradeableContextTest is REP15UpgradeableTest {
     target.setContextUser(ctxHash, tokenId, user);
   }
 
+  function test_setContextUser_RevertWhen_UserIsZeroAddress() public withContext(ATTACHED) {
+    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InvalidUser.selector, address(0)));
+
+    vm.prank(controller);
+    target.setContextUser(ctxHash, tokenId, address(0));
+  }
+
   function test_maxDetachingDuration() public view {
     assertEq(target.maxDetachingDuration(), MAX_DETACHING_DURATION);
   }

@@ -6,6 +6,45 @@ import { IREP15Errors } from "@ronin/rep-0015/interfaces/IREP15Errors.sol";
 import { IREP15ContextCallback, IERC165 } from "@ronin/rep-0015/interfaces/IREP15ContextCallback.sol";
 import { IERC721 } from "@openzeppelin-v4/token/ERC721/IERC721.sol";
 
+/// @dev A controller that re-enters `attachContext` in its `onExecDetachContext` callback to test M-1.
+contract ReentrantControllerMock is IREP15ContextCallback {
+  REP15UpgradeableTarget internal _target;
+  bytes32 internal _ghostCtxHash;
+  uint256 internal _ghostTokenId;
+
+  constructor(REP15UpgradeableTarget target_) {
+    _target = target_;
+  }
+
+  function createContext(uint64 detachingDuration, bytes calldata ctxMsg) external returns (bytes32) {
+    return _target.createContext(address(this), detachingDuration, ctxMsg);
+  }
+
+  function attachCtx(bytes32 ctxHash, uint256 tid) external {
+    _target.attachContext(ctxHash, tid, "");
+  }
+
+  function setGhostInject(bytes32 ctxHash, uint256 tid) external {
+    _ghostCtxHash = ctxHash;
+    _ghostTokenId = tid;
+  }
+
+  function doTransfer(address to, uint256 tid) external {
+    _target.transferFrom(address(this), to, tid);
+  }
+
+  function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+    return interfaceId == type(IREP15ContextCallback).interfaceId || interfaceId == type(IERC165).interfaceId;
+  }
+
+  function onAttached(bytes32, uint256, address, bytes calldata) external override { }
+  function onDetachRequested(bytes32, uint256, address, bytes calldata) external override { }
+
+  function onExecDetachContext(bytes32, uint256, address, address, bytes calldata) external override {
+    _target.attachContext(_ghostCtxHash, _ghostTokenId, "");
+  }
+}
+
 contract REP15UpgradeableTransfersTest is REP15UpgradeableTest {
   address internal immutable owner = address(this);
   address internal immutable tokenApproved = makeAddr("tokenApproved");
@@ -188,5 +227,33 @@ contract REP15UpgradeableTransfersTest is REP15UpgradeableTest {
     );
 
     target.transferFrom(owner, other, tokenId);
+  }
+
+  function test_transferFrom_SuccessWhen_ReentrantAttachIsBlocked() public {
+    uint256 reentrantTokenId = tokenId + 1;
+    address recipient = makeAddr("reentrantRecipient");
+
+    ReentrantControllerMock reentrant = new ReentrantControllerMock(target);
+    target.mint(address(reentrant), reentrantTokenId);
+
+    // C1: attached to the token; detached on transfer, firing onExecDetachContext
+    bytes32 ctxHash = reentrant.createContext(0, "context C1");
+    reentrant.attachCtx(ctxHash, reentrantTokenId);
+
+    // C2 (ghost): the context the controller will try to inject during detachment of C1
+    bytes32 ghostCtxHash = reentrant.createContext(0, "ghost context C2");
+    reentrant.setGhostInject(ghostCtxHash, reentrantTokenId);
+
+    // Transfer succeeds; reentrant attachContext(C2) inside the callback is blocked
+    vm.expectEmit(address(target));
+    emit IERC721.Transfer(address(reentrant), recipient, reentrantTokenId);
+    reentrant.doTransfer(recipient, reentrantTokenId);
+
+    // Ghost context must not be attached — the reentrant injection was blocked
+    vm.prank(address(reentrant));
+    vm.expectRevert(
+      abi.encodeWithSelector(IREP15Errors.REP15NonexistentAttachedContext.selector, ghostCtxHash, reentrantTokenId)
+    );
+    target.setContextLock(ghostCtxHash, reentrantTokenId, false);
   }
 }

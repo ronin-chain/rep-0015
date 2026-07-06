@@ -25,6 +25,9 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
   mapping(uint256 tokenId => mapping(bytes32 ctxHash => uint256 index)) private _attachedContextsIndex;
 
+  /// @dev keccak256("axieinfinity.transient.REP15.isDetaching")
+  uint256 private constant $$_IsDetachingTSlot = 0xc036bb99732038fd598687ced0a01c3426beffa0322e6933982f389fc3a04649;
+
   constructor(uint64 maxDetachingDurationSeconds) {
     _MAX_DETACHING_DURATION = maxDetachingDurationSeconds;
   }
@@ -121,6 +124,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     address operator = _msgSender();
 
     _checkAuthorizedOwnershipManager(tokenId, operator);
+    if (_isDetaching()) revert REP15DetachingInProgress(ctxHash, tokenId);
 
     _attachContext(ctxHash, tokenId, operator, data);
   }
@@ -469,6 +473,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
       delete _delegations[firstTokenId];
 
       bytes32[] storage attachedContexts = _attachedContexts[firstTokenId];
+      _setIsDetaching();
       for (int256 i = int256(attachedContexts.length) - 1; i >= 0; --i) {
         bytes32 ctxHash = attachedContexts[uint256(i)];
         _detachContext({
@@ -480,6 +485,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
           emitEvent: false
         });
       }
+      _clearIsDetaching();
     }
   }
 
@@ -530,5 +536,23 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     attachedContexts.pop();
     delete attachedContextsIndex[ctxHash];
+  }
+
+  function _setIsDetaching() private {
+    assembly ("memory-safe") {
+      tstore($$_IsDetachingTSlot, 1)
+    }
+  }
+
+  function _clearIsDetaching() private {
+    assembly ("memory-safe") {
+      tstore($$_IsDetachingTSlot, 0)
+    }
+  }
+
+  function _isDetaching() private view returns (bool flag) {
+    assembly ("memory-safe") {
+      flag := tload($$_IsDetachingTSlot)
+    }
   }
 }

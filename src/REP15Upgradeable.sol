@@ -27,6 +27,9 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /// @dev Value is equal to keccak256(abi.encode(uint256(keccak256("axieinfinity.storage.REP15Upgradeable")) - 1)) & ~bytes32(uint256(0xff))
   bytes32 private constant $$_REP15StorageLocation = 0x2d8b96ed06e1e4e698120e91bb5a55b8ef8d39e3d6e06d21c184ee4f24dd6b00;
 
+  /// @dev keccak256("axieinfinity.transient.REP15Upgradeable.isDetaching")
+  uint256 private constant $$_IsDetachingTSlot = 0x41d7a6bfcd3ff041bcb55e801a7bb4109522980200d6872783340a755c3bc0dd;
+
   /// @dev Return `REP15Storage` at storage slot `REP15StorageLocation`.
   function _getREP15Storage() private pure returns (REP15Storage storage $) {
     assembly ("memory-safe") {
@@ -149,6 +152,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
     virtual
     onlyOwnershipManager(tokenId)
   {
+    if (_isDetaching()) revert REP15DetachingInProgress(ctxHash, tokenId);
     _beforeTokenContext();
     _attachContext({ ctxHash: ctxHash, tokenId: tokenId, operator: _msgSender(), data: data });
   }
@@ -504,6 +508,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
 
     // skip if there are no attached contexts
     if (length == 0) return;
+    _setIsDetaching();
     bytes32 ctxHash;
     for (int256 i = length - 1; i >= 0; --i) {
       ctxHash = $attachedContexts[uint256(i)];
@@ -516,6 +521,7 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
         emitEvent: false
       });
     }
+    _clearIsDetaching();
   }
 
   /**
@@ -640,6 +646,24 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
       assembly ("memory-safe") {
         revert(add(data, 0x20), mload(data))
       }
+    }
+  }
+
+  function _setIsDetaching() private {
+    assembly ("memory-safe") {
+      tstore($$_IsDetachingTSlot, 1)
+    }
+  }
+
+  function _clearIsDetaching() private {
+    assembly ("memory-safe") {
+      tstore($$_IsDetachingTSlot, 0)
+    }
+  }
+
+  function _isDetaching() private view returns (bool flag) {
+    assembly ("memory-safe") {
+      flag := tload($$_IsDetachingTSlot)
     }
   }
 }

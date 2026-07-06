@@ -111,4 +111,11 @@ interface IREP15Errors {
    * @param user Address of the user.
    */
   error REP15InvalidUser(address user);
+
+  /**
+   * @dev Indicates attaching a context is forbidden while a detach-all operation is in progress for the token.
+   * @param ctxHash Hash of the context.
+   * @param tokenId Identifier number of the token.
+   */
+  error REP15DetachingInProgress(bytes32 ctxHash, uint256 tokenId);
 }

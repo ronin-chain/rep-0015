@@ -1,0 +1,55 @@
+- Detected blockchain: Ethereum/EVM compatible (Ronin network, EVM-equivalent)
+- Detected protocol type: NFT/Gaming — ERC-721 extension standard (REP-15), context system for NFT-based games
+- Applied audit tricks for: NFT/Gaming protocol (nft-gaming.md), proxy insecurities (fv-sol-7), reentrancy (fv-sol-1), access control (fv-sol-4), logic errors (fv-sol-5)
+- Scope: contracts/src/ — REP15.sol, REP15Upgradeable.sol, REP15Utils.sol, extensions/REP15Enumerable.sol, extensions/REP15EnumerableUpgradeable.sol, extensions/REP15PausableUpgradeable.sol, extensions/REP15BatchUpgradeable.sol, interfaces/* — all in scope
+- Scope exclusions: .context/ directory, test/ mocks, soldeer dependencies
+- Build: `forge build` → success, 0 compile errors, 1 lint warning (unsafe typecast in ControllerMock.sol test helper)
+- Test suite: `forge test` → 202 tests, 0 failed, 0 skipped — full suite green
+- Protocol purpose: ERC-721 extension adding context attachment (game-level token usage rights), ownership delegation (temporary management rights), and context-based lock mechanism
+- Key actors: token owner, delegatee (ownership manager during delegation), context controller (game/dApp contract), context user (in-game account)
+- KB: Referenced reference/solidity/protocols/nft-gaming.md — ghost context, lock manipulation, callback reentrancy, approval sprawl patterns
+- KB: Referenced reference/solidity/fv-sol-1-reentrancy/readme.md — cross-function reentrancy, callback reentrancy patterns
+- KB: Referenced reference/solidity/fv-sol-7-proxy-insecurities/readme.md — storage collision, initializer, storage gap patterns
+- KB: Referenced reference/solidity/fv-sol-4-bad-access-control/readme.md — authorization order, role separation patterns
+- KB: Referenced reference/solidity/fv-sol-5-logic-errors/readme.md — loop boundary, wrong-error, missing check patterns
+- Storage slot verification: keccak256 computation for REP15Upgradeable namespace → computed 0x2d8b...6b00, contract has 0x2d8b...6b00 ✓ MATCH
+- Storage slot verification: keccak256 computation for REP15EnumerableUpgradeable namespace → computed 0x6e70...9400, contract has 0x6e70...9400 ✓ MATCH
+- No storage slot collision or incorrect values found
+- grep -r "nonReentrant\|ReentrancyGuard" src/ → 0 results — no reentrancy guards anywhere in the protocol
+- grep -r "\.call\{" src/ → 0 results — no low-level calls; all external calls via interface
+- grep -r "try.*catch" src/ → found in REP15.sol _detachContext and _requestDetachContext — onExecDetachContext and onDetachRequested use try/catch (allow fail)
+- grep -r "allowFail: false" src/ → found in REP15Upgradeable._attachContext → onAttached does NOT use try/catch; controller rejection propagates
+- grep -r "allowFail: false" src/ → REP15Upgradeable only; REP15.sol calls onAttached directly without try/catch either
+- onAttached reverts propagate: if controller rejects, attachContext reverts — expected behavior per spec
+- _detachAllContexts loop analysis: length captured as int256 once before loop; $attachedContexts is STORAGE reference, dynamically updated during loop
+- Reentrancy path confirmed: _detachAllContexts → _detachContext → onExecDetachContext callback → attachContext → _addAttachedContext appends to storage array beyond captured length bound
+- Concrete trace: [A,B,C], i=2→C detached+callback fires→D appended→[A,B,D], i=1→B detached→[A,D], i=0→A detached→[D], loop ends with D still attached ✓ ghost context confirmed
+- _removeAttachedContext: swap-and-pop; during backward loop, swap is always no-op when processing last element; reentrancy breaks assumption after D is appended
+- No ReentrancyGuard on _beforeTokenTransfer, _detachAllContexts, or _detachContext
+- Approval timing: during _beforeTokenTransfer (pre-transfer), ERC721 `approve()` on tokenId still valid because OZ clears it in `_afterTokenTransfer` not `_beforeTokenTransfer`; setApprovalForAll persists regardless
+- Authorization for reentrant attachContext: controller has setApprovalForAll from owner (common in gaming DApps) OR controller is the delegatee OR controller has been approved via approve() — all remain valid during _beforeTokenTransfer callback
+- Pausable coverage: REP15PausableUpgradeable._beforeOwnershipDelegation() → _requireNotPaused(); _beforeTokenContext() → _requireNotPaused()
+- Pausable gap: _beforeTokenTransfer NOT overridden in REP15PausableUpgradeable → transfers proceed when paused → _detachAllContexts fires → onExecDetachContext callbacks fire while paused
+- Test confirmation: test/REP15Upgradeable.pausable.t.sol — no test for transferFrom while paused; all pausable tests cover delegation and context operations only
+- execDetachContext wrong-error analysis: calls _detachContext(checkReadyForDetachment: true); _detachContext checks readyForDetachmentAt == 0 BEFORE checking attached field; for non-attached context, both attached==false AND readyForDetachmentAt==0 → REP15NotRequestedForDetachment fires instead of REP15NonexistentAttachedContext
+- Auth order in startDelegateOwnership: delegation.isActive() checked before _isApprovedOrOwner; unauthorized callers learn whether active delegation exists; info already public via getOwnershipDelegatee()
+- REP15Enumerable redundant storage: base class REP15Upgradeable has _attachedContexts in its storage struct; REP15EnumerableUpgradeable adds its OWN _attachedContexts in a separate storage struct at a different ERC-7201 slot; both maintained via _afterAttachContext/_afterDetachContext override chain — doubled gas for attach/detach
+- Solidity version check: REP15.sol uses ^0.8.18, REP15Upgradeable.sol uses ^0.8.17, extensions use ^0.8.26 — minor inconsistency but no security impact
+- _disableInitializers() verified: all upgradeable contracts call it in constructor ✓
+- initializer pattern verified: __REP15_init, __REP15Enumerable_init, __REP15Batch_init all follow OZ chaining pattern ✓
+- No UUPS proxy pattern used — TransparentUpgradeableProxy confirmed per CLAUDE.md ✓
+- Storage gaps: REP15Upgradeable and REP15EnumerableUpgradeable use ERC-7201 custom slots — no storage gaps needed ✓
+- ERC-165 supportsInterface: REP15Upgradeable returns IREP15 interfaceId; REP15EnumerableUpgradeable also returns IREP15Enumerable interfaceId ✓
+- maxDetachingDuration: REP15Upgradeable hardcodes 365 days (pure function, not virtual); REP15.sol is abstract and has abstract maxDetachingDuration — consistent ✓
+- No arithmetic errors: all durations use uint64, block.timestamp cast to uint64 is safe until year 2^64 ✓
+- requestDetachContext controller bypass: controller can call requestDetachContext to force-immediate detach even if locked — confirmed in IREP15 comments as intentional design ✓
+- No flash loan attack surface: no price oracles, no liquidity pools, no economic invariants that flash loans could break
+- MEV analysis: attachContext/detachContext not front-runnable for profit; delegation not MEV-sensitive
+- Cross-contract reentrancy: REP15 contracts don't maintain global invariants that could be violated via cross-contract reentrancy beyond the ghost context finding
+- ✓ Pursued NFT/gaming callback reentrancy deep-dive — confirmed ghost context finding
+- ✓ Pursued proxy/upgradeability checks — all clear
+- ✓ Pursued pausable coverage gaps — confirmed transfer-not-paused finding
+- ✓ Verified storage slots mathematically
+- ✗ No oracle analysis needed (no price oracles)
+- ✗ No economic/flash loan analysis (no liquidity)
+- ✗ No cross-chain bridge analysis (single chain)

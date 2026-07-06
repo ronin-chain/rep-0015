@@ -25,4 +25,13 @@ abstract contract REP15PausableUpgradeable is Initializable, REP15Upgradeable, P
   function _beforeTokenContext() internal virtual override {
     _requireNotPaused();
   }
+
+  function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize)
+    internal
+    virtual
+    override
+  {
+    super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+    _requireNotPaused();
+  }
 }

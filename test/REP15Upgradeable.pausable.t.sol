@@ -123,4 +123,9 @@ contract REP15UpgradeablePausableTest is Test {
     vm.prank(controllerEOA);
     target.setContextUser(ctxHash, tokenId, makeAddr("user"));
   }
+
+  function test_transferFrom_RevertWhen_Paused() public {
+    vm.expectRevert("Pausable: paused");
+    target.transferFrom(address(this), makeAddr("recipient"), tokenId);
+  }
 }

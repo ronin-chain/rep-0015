@@ -290,6 +290,12 @@ contract REP15UpgradeableContextTest is REP15UpgradeableTest {
     target.execDetachContext(ctxHash, tokenId, "exec detach data");
   }
 
+  function test_execDetachContext_RevertWhen_NotAttachedContext() public withContext(FREE | NONEXISTENT) {
+    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15NonexistentAttachedContext.selector, ctxHash, tokenId));
+
+    target.execDetachContext(ctxHash, tokenId, "exec detach data");
+  }
+
   function test_execDetachContext_RevertWhen_RequestedButNotPassed() public withContext(WAITING) {
     vm.expectRevert(
       abi.encodeWithSelector(

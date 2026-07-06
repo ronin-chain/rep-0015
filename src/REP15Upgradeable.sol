@@ -43,10 +43,6 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
 
   function __REP15_init_unchained() internal onlyInitializing { }
 
-  function _beforeOwnershipDelegation() internal virtual { }
-
-  function _beforeTokenContext() internal virtual { }
-
   modifier onlyOwnershipManager(uint256 tokenId) {
     _checkAuthorizedOwnershipManager(tokenId, _msgSender());
     _;
@@ -287,6 +283,12 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
     return ($delegation.delegatee, $delegation.until);
   }
 
+  /// @notice Hook called before ownership delegation actions
+  function _beforeOwnershipDelegation() internal virtual { }
+
+  /// @notice Hook called before token context actions
+  function _beforeTokenContext() internal virtual { }
+
   /**
    * @dev Ensures the delegation is active and returns the delegation storage pointer.
    */
@@ -455,6 +457,9 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   ) internal {
     REP15Storage storage $ = _getREP15Storage();
     REP15Utils.TokenContext storage $tokenContext = $._tokenContext[tokenId][ctxHash];
+
+    if (!$tokenContext.attached) revert REP15NonexistentAttachedContext(ctxHash, tokenId);
+
     if (checkReadyForDetachment) {
       uint64 readyForDetachmentAt = $tokenContext.readyForDetachmentAt;
 
@@ -539,7 +544,11 @@ contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Err
   /**
    * @dev Overrides `safeTransferFrom` to check against the ownership manager instead of the standard ERC721 approval.
    */
-  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
+  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
+    public
+    virtual
+    override
+  {
     _checkAuthorizedOwnershipManager({ tokenId: tokenId, operator: _msgSender() });
     _safeTransfer(from, to, tokenId, data);
   }

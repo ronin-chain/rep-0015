@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { REP15UpgradeableTest, ControllerMock } from "./REP15Upgradeable.t.sol";
+import { REP15UpgradeableTest, REP15UpgradeableTarget, ControllerMock } from "./REP15Upgradeable.t.sol";
 import { IREP15Errors } from "@ronin/rep-0015/interfaces/IREP15Errors.sol";
+import { IREP15ContextCallback, IERC165 } from "@ronin/rep-0015/interfaces/IREP15ContextCallback.sol";
 import { IERC721 } from "@openzeppelin-v4/token/ERC721/IERC721.sol";
 
 contract REP15UpgradeableTransfersTest is REP15UpgradeableTest {

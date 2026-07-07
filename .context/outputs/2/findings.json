@@ -1,0 +1,70 @@
+[
+  {
+    "id": "M-1",
+    "severity": "Medium",
+    "type": "Cross-function Reentrancy",
+    "title": "Ghost Context Injection via Reentrancy in _detachAllContexts",
+    "status": "Open",
+    "locations": [
+      "src/REP15.sol:467-478",
+      "src/REP15Upgradeable.sol:495-514"
+    ],
+    "description": "The _detachAllContexts loop (and the inline loop in REP15._beforeTokenTransfer) captures the attached context array length once before iterating. During the onExecDetachContext callback inside _detachContext, a malicious controller can re-enter attachContext and append a new context beyond the captured loop bound. After token transfer the recipient inherits the ghost context which can be immediately locked for up to 365 days.",
+    "impact": "Griefing: buyer's token is transfer-locked for up to 365 days. Requires malicious controller with setApprovalForAll or approve() from the token owner.",
+    "recommendation": "Add a reentrancy guard flag in REP15Storage that blocks attachContext re-entry during _detachAllContexts, or snapshot the attached context array to memory before the loop."
+  },
+  {
+    "id": "L-1",
+    "severity": "Low",
+    "type": "Incomplete Pause Coverage",
+    "title": "Transfers Not Guarded in REP15PausableUpgradeable",
+    "status": "Open",
+    "locations": [
+      "src/extensions/REP15PausableUpgradeable.sol"
+    ],
+    "description": "REP15PausableUpgradeable guards delegation and context operations but not token transfers. Transfers while paused still call _detachAllContexts which fires onExecDetachContext callbacks on external controller contracts.",
+    "impact": "External controller calls fire during emergency pause, potentially violating the expected no-state-changes-while-paused invariant.",
+    "recommendation": "Override _beforeTokenTransfer in REP15PausableUpgradeable to call _requireNotPaused() for non-mint transfers."
+  },
+  {
+    "id": "L-2",
+    "severity": "Low",
+    "type": "Logic Error",
+    "title": "Wrong Revert Error for execDetachContext on Non-Attached Context",
+    "status": "Open",
+    "locations": [
+      "src/REP15Upgradeable.sol:458-467",
+      "src/REP15.sol:397-407"
+    ],
+    "description": "execDetachContext calls _detachContext(checkReadyForDetachment: true). For a non-attached context, readyForDetachmentAt is zero, triggering REP15NotRequestedForDetachment instead of the correct REP15NonexistentAttachedContext.",
+    "impact": "Misleading error message for off-chain integrators. No fund loss.",
+    "recommendation": "In _detachContext, check attachment before readyForDetachmentAt when checkReadyForDetachment is true."
+  },
+  {
+    "id": "I-1",
+    "severity": "Informational",
+    "type": "Authorization Order",
+    "title": "Authorization Check After Delegation State Query in startDelegateOwnership",
+    "status": "Acknowledged",
+    "locations": [
+      "src/REP15Upgradeable.sol:83-87"
+    ],
+    "description": "startDelegateOwnership checks delegation.isActive() before the caller authorization check. Unauthorized callers can infer whether an active delegation exists by observing the revert reason. This information is already public via getOwnershipDelegatee().",
+    "impact": "No practical exploit. Cosmetic ordering issue.",
+    "recommendation": "Move _isApprovedOrOwner check before delegation state check."
+  },
+  {
+    "id": "I-2",
+    "severity": "Informational",
+    "type": "Gas Efficiency",
+    "title": "Redundant _attachedContexts Storage in Enumerable Extension",
+    "status": "Acknowledged",
+    "locations": [
+      "src/REP15Upgradeable.sol:591-613",
+      "src/extensions/REP15EnumerableUpgradeable.sol:101-123"
+    ],
+    "description": "REP15Upgradeable and REP15EnumerableUpgradeable both maintain _attachedContexts and _attachedContextsIndex mappings in separate ERC-7201 storage slots, updated in parallel via the virtual hook chain. This doubles the SSTORE count on every attach and detach.",
+    "impact": "Increased gas cost only. No security impact.",
+    "recommendation": "Consider making the base-class _attachedContexts internal and allowing enumerable extensions to reuse it, or provide a virtual internal getter that _detachAllContexts calls."
+  }
+]

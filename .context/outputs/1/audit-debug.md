@@ -1,0 +1,97 @@
+- Detected blockchain: Ethereum/EVM (Solidity ^0.8.17 / ^0.8.18 / ^0.8.26)
+- Detected protocol type: NFT Token Standard Extension (ERC-721 with context/delegation layer)
+- Applied audit tricks for: nft-gaming.md protocol context
+- Scope boundaries: src/ contracts (REP15.sol, REP15Upgradeable.sol, REP15Utils.sol, extensions/, interfaces/)
+- `find src -name "*.sol" | sort` → 13 source files identified
+- Read all source contracts including REP15.sol, REP15Upgradeable.sol, REP15Utils.sol, all extensions and interfaces
+- Analyzed external call patterns → _triggerContextCallback (REP15Upgradeable) and direct IREP15ContextCallback calls (REP15)
+- REP15.sol direct call pattern: IREP15ContextCallback(controller).onAttached(...) without try-catch for attach; try-catch for detach
+- REP15Upgradeable.sol uses _triggerContextCallback helper: allowFail=false for onAttached, allowFail=true for onDetachRequested and onExecDetachContext
+- Reentrancy analysis: _attachContext emits event then calls onAttached on controller - state changes happen before callback, but _requireNotAttachedTokenContext returns storage pointer then sets .attached=true, then calls _addAttachedContext
+- Storage update order in _attachContext: _requireNotAttachedTokenContext sets .attached=true, then _addAttachedContext, then emit, then external call → state is set before external call → no classic reentrancy for attach
+- Delegation approval check: _checkAuthorizedDelegatee only checks isApprovedForAll(delegatee, operator), does NOT check individual token approval (approve()) for delegatee actions
+- startDelegateOwnership in REP15.sol: checks delegation.isActive() BEFORE checking _isApprovedOrOwner → if delegation is inactive, exits early on that check then verifies ownership
+- startDelegateOwnership allows replacing pending (not active) delegation → spec says "Replaces the pending delegation if any" → this is correct per spec
+- REP15Upgradeable.startDelegateOwnership: same pattern as REP15 - checks isActive() then _isApprovedOrOwner
+- Spec says startDelegateOwnership MUST revert unless there is no delegation → however the implementation ONLY checks for active (accepted, not expired) delegation, not pending → a pending delegation can be freely replaced
+- requestDetachContext: controller can bypass ownership manager check → if msg.sender == context controller, immediately calls _detachContext without the ownership manager check → this is intentional design
+- setContextLock: MUST revert if token is requested for detachment - _requireAttachedTokenContext(ctxHash, tokenId, true) with checkNotRequestedForDetachment=true handles this correctly
+- setContextUser: uses _requireAttachedTokenContext with checkNotRequestedForDetachment=false - user can be updated even when detachment is requested → potential issue?
+- Transfer override: _checkAuthorizedOwnershipManager is called in transferFrom, safeTransferFrom but relies on ownership manager check. ERC721's standard approve() still works when no delegation is active
+- _beforeTokenTransfer deletes delegation and detaches all contexts - looks correct
+- REP15Enumerable: has duplicate storage structures (_allContexts, _attachedContexts) shadowing REP15's _attachedContexts - this is intentional since enumerable adds enumeration on top of base
+- REP15Enumerable._afterDetachContext uses local storage without calling super._afterDetachContext - correct since base class _afterDetachContext is empty
+- Checked: deprecateContext function mentioned in spec interface but NOT implemented in code - however looking at IREP15 interface it does NOT include deprecateContext, so the spec document (REP-0015 preamble) differs from actual IREP15 interface
+- Context deprecation: no deprecateContext exists in IREP15.sol interface - only createContext and updateContext; controller can set new controller via updateContext but can't "deprecate" with zero controller
+- maxDetachingDuration in REP15Upgradeable: hardcoded to 365 days as pure function, not configurable per instance; REP15 base has immutable _MAX_DETACHING_DURATION
+- Delegation isPending/isActive check: both use self.until > block.timestamp - correct timestamp comparison
+- isActive: delegated == true AND until > block.timestamp
+- isPending: delegated == false AND until > block.timestamp
+- Non-pending non-active case: delegated=false until<=block.timestamp OR delegated=true until<=block.timestamp (expired)
+- startDelegateOwnership check: if ($delegation.isActive()) revert → allows starting if pending (not yet accepted) or expired/not existent → this REPLACES pending delegations silently
+- Spec says "MUST revert unless there is no delegation" but also "After the above conditions are met, this function MUST replace the pending delegation if any" → contradictory spec, implementation follows second rule
+- setContextUser: allows setting user to zero address → IREP15 spec says MUST revert if new user is zero address, but setContextUser in implementation has NO zero-address check for user
+- Checked: setContextUser line 176-180 (REP15.sol) and line 210-216 (REP15Upgradeable.sol) → no zero-address validation for `user` parameter
+- Spec says "MUST revert if new user address is zero address" for setContextUser
+- REP15Upgradeable _triggerContextCallback uses low-level .call() - potential for gas griefing if controller deliberately uses all gas; allowFail=true for detach callbacks so worst case is gas waste
+- onAttached in REP15Upgradeable: allowFail=false means a reverting controller can prevent attachment
+- onAttached in REP15.sol: direct call without try-catch means reverting controller blocks attachment → this is by design ("This function MAY throw to revert and reject the attachment")
+- REP15.sol requestDetachContext: when caller is controller, calls _detachContext with checkReadyForDetachment=false and emitEvent=true → this always emits ContextDetached (not ContextDetachmentRequested) → controller can instantly detach regardless of lock status → potential issue if controller is malicious
+- REP15Upgradeable requestDetachContext: same pattern - if caller is controller, directly calls _detachContext ignoring lock state
+- This means: the context controller can always force-detach ANY token from their context regardless of locked state, bypassing the detaching duration mechanism
+- Checked setContextLock: controller can lock but CANNOT prevent detachment by controller themselves (they can unlock and re-detach)
+- Found: when controller calls requestDetachContext, _detachContext is called with checkReadyForDetachment=false, meaning the locked state and detachingDuration are completely bypassed
+- This appears to be a design decision since controllers can always change the lock state anyway (setContextLock)
+- However, the spec says: "requestDetachContext MUST be called by the ownership manager" - the controller path bypasses this requirement without being the ownership manager
+- REP15Upgradeable.setContextUser: no zero address check - CONFIRMED missing validation
+- REP15.sol _removeAttachedContext: swap-and-pop pattern, correctly updates index
+- REP15Enumerable._afterDetachContext: also swap-and-pop but uses LOCAL _attachedContexts storage, not the base REP15's _attachedContexts - both maintain separate tracking which is correct but adds complexity
+- Checked deprecateContext in spec: mentioned in spec preamble as function on IREP15 but not in the actual IREP15 interface, nor implemented - inconsistency between spec and interface
+- Check: REP15 does not call _disableInitializers() in constructor since it's abstract - REP15Upgradeable also does not call _disableInitializers() - CRITICAL issue for upgradeable contracts
+- REP15Upgradeable line 13: contract REP15Upgradeable is Initializable, ERC721Upgradeable, IREP15, IREP15Errors - no constructor at all, no _disableInitializers() call
+- This is a significant security issue: without _disableInitializers() in the constructor, the implementation contract can be initialized by anyone
+- Checked: REP15BatchUpgradeable also inherits REP15Upgradeable and has no constructor with _disableInitializers()
+- Checked: REP15EnumerableUpgradeable also inherits REP15Upgradeable and has no constructor with _disableInitializers()
+- REP15PausableUpgradeable: also no constructor with _disableInitializers()
+- All upgradeable contracts are missing _disableInitializers() protection
+- REP15Upgradeable._detachAllContexts: loops over contexts in reverse, but the loop variable `ctxHash` is declared outside the loop and reused - this is fine in Solidity
+- REP15Upgradeable._beforeTokenTransfer: calls _detachAllContexts which loops and calls _detachContext which calls _triggerContextCallback - multiple external calls during transfer - potential for callback-based attacks during transfer
+- Transfer reentrancy: during _beforeTokenTransfer, each context callback is triggered. If one callback re-enters, the state is already modified (the context is being deleted), but other contexts are still present
+- Checked: _detachContext deletes _tokenContext before calling callback - state is cleared before external call - safe from that perspective
+- During _beforeTokenTransfer loop: contexts are iterated in reverse, each deleted from storage before callback fired; subsequent iterations work on updated array
+- REP15.sol _beforeTokenTransfer: passes `checkReadyForDetachment: _tokenContext[firstTokenId][ctxHash].locked` - this means locked contexts get checkReadyForDetachment=true during transfer - but wait, the context was already requested for detachment at that readyForDetachmentAt time. If a locked context has NOT been requested for detachment, checkReadyForDetachment=true means it needs readyForDetachmentAt > 0 AND <= block.timestamp, otherwise it reverts
+- CRITICAL: REP15.sol _beforeTokenTransfer calls _detachContext with checkReadyForDetachment=locked. If a token has locked contexts that haven't been requested for detachment (readyForDetachmentAt=0), then _detachContext will revert because readyForDetachmentAt==0 triggers REP15NotRequestedForDetachment
+- This means: a token with ANY locked context CANNOT be transferred because _beforeTokenTransfer will revert
+- This is actually intended behavior - locked contexts prevent transfer
+- REP15Upgradeable._beforeTokenTransfer: calls _detachAllContexts which also passes checkReadyForDetachment: $._tokenContext[tokenId][ctxHash].locked - same behavior
+- When locked and not requested: readyForDetachmentAt=0, checkReadyForDetachment=true → REP15NotRequestedForDetachment revert → transfer blocked → this IS the lock mechanism
+- When locked and requested but waiting: readyForDetachmentAt > block.timestamp → REP15UnreadyForDetachment → transfer blocked → correct
+- When locked and requested and passed: readyForDetachmentAt <= block.timestamp → detaches successfully → transfer can proceed
+- So locked context properly blocks transfer until detachment duration passes - this is by design
+- Checking if controller can grief transfer: controller sets lock=true → token cannot transfer until requestDetachContext + wait → controller refuses to call onDetachRequested but result is skipped → ownership manager can still call requestDetachContext → correct
+- Checking: when requestDetachContext is called and token is unlocked: directly calls _detachContext, which emits ContextDetached, then calls onExecDetachContext on controller - state cleared before callback
+- Checking: execDetachContext checks readyForDetachmentAt > 0 AND <= block.timestamp - correctly verifies timing
+- FOUND: In the deprecateContext scenario - the spec document mentions deprecateContext but the actual interface IREP15.sol does NOT include it. The implementation has no deprecateContext. This is a spec-implementation divergence.
+- `grep -r "deprecateContext" --include="*.sol" src/` → no results → confirmed
+- Checking setContextUser zero address: `grep -n "user" src/REP15.sol | grep -i "zero\|address(0)"` → no results
+- setContextUser in REP15.sol line 176-180: _requireAttachedTokenContext then sets .user = user, emits ContextUserAssigned → no zero-address check
+- Spec: "MUST revert if new user address is zero address" → implementation violation
+- Interface IREP15.sol does not mention zero address check for setContextUser → only the spec doc mentions it
+- Checking: startDelegateOwnership spec says "MUST revert if delegatee address is the owner or zero address" → implemented correctly: `if (delegatee == owner || delegatee == address(0)) revert`
+- Checking: startDelegateOwnership "MUST revert unless there is no delegation" - but code only checks `isActive()` not `isPending()` → pending delegations silently replaced
+- Spec also says "After the above conditions are met, this function MUST replace the pending delegation if any" → this is an explicit instruction in the spec to replace pending delegations
+- So the spec is self-contradictory: first says "MUST revert unless there is no delegation" then says "replace the pending delegation if any"
+- Implementation correctly follows the second rule (replace pending delegation) which is the more specific rule
+- However, the ORDER of checks in startDelegateOwnership: first checks delegatee validity, then expiry, then isActive, then _isApprovedOrOwner → if delegation isActive, reverts before checking approval → order seems intentional
+- REP15Upgradeable.requestDetachContext: controller can call this and directly detach without ownership manager check. The spec says "MUST revert if the method caller is not an ownership manager or approved accounts" - but there's an explicit controller path. This is an implementation extension beyond the spec.
+- Whether the controller-bypass is a bug or intentional design: since controller can setContextLock(false) to unlock, then ownership manager can detach, controller having direct detach is functionally equivalent but bypasses one step. However the spec explicitly says the method caller must be ownership manager.
+- Checking: IREP15.sol requestDetachContext natspec says "See requestDetachContext rules in Token (Un)lock Rules" → those rules say "MUST revert if the method caller is not an ownership manager or approved accounts to manage the tokens for ownership manager"
+- The controller bypass violates the spec's stated requirements for requestDetachContext
+- Summary of key issues found: 1) _disableInitializers() missing in all upgradeable contracts, 2) setContextUser missing zero-address check, 3) controller can bypass requestDetachContext ownership manager requirement, 4) no deprecateContext implementation despite spec mentioning it
+- KB: Referenced nft-gaming.md protocol context → checked reentrancy in claiming/minting, random number generation, royalty edge cases, batch operations, NFT approvals, anti-sybil mechanisms
+- KB: Referenced fv-sol-7-proxy-insecurities for upgradeable contract issues
+- KB: Checking fv-sol-4-bad-access-control for access control violations
+- `grep -rn "approve\|setApprovalForAll" src/REP15.sol | grep -v "\/\/"` → approvals inherited from ERC721, not overridden (except _checkAuthorizedOwnershipManager uses _isApprovedOrOwner)
+- When delegation is active: _checkAuthorizedOwnershipManager only checks _checkAuthorizedDelegatee(delegatee, operator) which only checks isApprovedForAll. Individual token approvals (approve()) are NOT checked for delegatee authorization. This means a delegatee who has given individual token approval via approve() to someone can't use that - only setApprovalForAll works. This is a minor limitation, not a bug.
+- Checking: when no delegation, _checkAuthorizedOwnershipManager calls _isApprovedOrOwner which checks owner OR approved (individual) OR isApprovedForAll → correct standard ERC721 checks
+- Final check: REP15Upgradeable has no constructor → implementation can be initialized directly → attacker can call initialize on impl contract, potentially take control of impl storage which could affect beacon proxy patterns

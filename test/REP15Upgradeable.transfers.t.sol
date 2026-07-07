@@ -1,0 +1,259 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+import { REP15UpgradeableTest, REP15UpgradeableTarget, ControllerMock } from "./REP15Upgradeable.t.sol";
+import { IREP15Errors } from "@ronin/rep-0015/interfaces/IREP15Errors.sol";
+import { IREP15ContextCallback, IERC165 } from "@ronin/rep-0015/interfaces/IREP15ContextCallback.sol";
+import { IERC721 } from "@openzeppelin-v4/token/ERC721/IERC721.sol";
+
+/// @dev A controller that re-enters `attachContext` in its `onExecDetachContext` callback to test M-1.
+contract ReentrantControllerMock is IREP15ContextCallback {
+  REP15UpgradeableTarget internal _target;
+  bytes32 internal _ghostCtxHash;
+  uint256 internal _ghostTokenId;
+
+  constructor(REP15UpgradeableTarget target_) {
+    _target = target_;
+  }
+
+  function createContext(uint64 detachingDuration, bytes calldata ctxMsg) external returns (bytes32) {
+    return _target.createContext(address(this), detachingDuration, ctxMsg);
+  }
+
+  function attachCtx(bytes32 ctxHash, uint256 tid) external {
+    _target.attachContext(ctxHash, tid, "");
+  }
+
+  function setGhostInject(bytes32 ctxHash, uint256 tid) external {
+    _ghostCtxHash = ctxHash;
+    _ghostTokenId = tid;
+  }
+
+  function doTransfer(address to, uint256 tid) external {
+    _target.transferFrom(address(this), to, tid);
+  }
+
+  function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+    return interfaceId == type(IREP15ContextCallback).interfaceId || interfaceId == type(IERC165).interfaceId;
+  }
+
+  function onAttached(bytes32, uint256, address, bytes calldata) external override { }
+  function onDetachRequested(bytes32, uint256, address, bytes calldata) external override { }
+
+  function onExecDetachContext(bytes32, uint256, address, address, bytes calldata) external override {
+    _target.attachContext(_ghostCtxHash, _ghostTokenId, "");
+  }
+}
+
+contract REP15UpgradeableTransfersTest is REP15UpgradeableTest {
+  address internal immutable owner = address(this);
+  address internal immutable tokenApproved = makeAddr("tokenApproved");
+  address internal immutable ownerOperator = makeAddr("ownerOperator");
+  address internal immutable delegatee = makeAddr("delegatee");
+  address internal immutable delegateeOperator = makeAddr("delegateeOperator");
+  address internal immutable other = makeAddr("other");
+  address internal caller;
+  bool delegated;
+
+  address[] controllers;
+  bytes32[] ctxHashes;
+
+  function setUp() public virtual override {
+    super.setUp();
+
+    vm.label(owner, "owner");
+
+    target.approve(tokenApproved, tokenId);
+    target.setApprovalForAll(ownerOperator, true);
+
+    vm.prank(delegatee);
+    target.setApprovalForAll(delegateeOperator, true);
+  }
+
+  modifier setUpContexts(uint256 substate) {
+    _initializeContexts(substate);
+
+    _setUpContexts(substate);
+
+    _;
+  }
+
+  function _setUpContexts(uint256 substate) internal {
+    for (uint256 i = 0; i < CONTROLLERS.length; ++i) {
+      address controller = CONTROLLERS[i];
+      for (uint256 j = 0; j < STATES.length; ++j) {
+        if (STATES[j] & substate == substate) {
+          controllers.push(controller);
+          ctxHashes.push(allContexts[controller][STATES[j]]);
+        }
+      }
+    }
+  }
+
+  modifier asAuthorizedOwnershipManager() {
+    uint256 snapshotId = vm.snapshot();
+
+    address[5] memory authorizedCallers = [owner, tokenApproved, ownerOperator, delegatee, delegateeOperator];
+
+    for (uint256 i = 0; i < 5; ++i) {
+      if (i == 3) {
+        _delegateTo(delegatee);
+        delegated = true;
+        snapshotId = vm.snapshot();
+      }
+
+      caller = authorizedCallers[i];
+      vm.prank(caller);
+      _;
+
+      assertTrue(vm.revertTo(snapshotId));
+    }
+  }
+
+  modifier asUnauthorizedOwnershipManager() {
+    uint256 snapshotId = vm.snapshot();
+
+    address[7] memory unauthorizedCallers =
+      [delegatee, delegateeOperator, other, owner, tokenApproved, ownerOperator, other];
+
+    for (uint256 i = 0; i < 7; ++i) {
+      if (i == 3) {
+        _delegateTo(delegatee);
+        delegated = true;
+        snapshotId = vm.snapshot();
+      }
+
+      caller = unauthorizedCallers[i];
+      vm.prank(caller);
+      _;
+
+      assertTrue(vm.revertTo(snapshotId));
+    }
+  }
+
+  function test_transferFrom() public asAuthorizedOwnershipManager {
+    vm.expectEmit(address(target));
+    emit IERC721.Transfer(owner, other, tokenId);
+
+    target.transferFrom(owner, other, tokenId);
+  }
+
+  // For easy testing, we test only for this specific implementation.
+  // So the controllers should emit the event in LIFO order when the contexts are attached.
+  // Other implementations may emit the event in a different order so that the test will fail. (*)
+  function test_transferFrom_SuccessWhen_AttachedUnlockedContexts()
+    public
+    setUpContexts(UNLOCKED)
+    asAuthorizedOwnershipManager
+  {
+    for (int256 i = int256(ctxHashes.length) - 1; i >= 0; --i) {
+      (bytes32 ctxHash, address controller) = (ctxHashes[uint256(i)], controllers[uint256(i)]);
+      if (controller != controllerEOA) {
+        vm.expectEmit(controller);
+        emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, address(0), caller, "");
+      }
+    }
+
+    vm.expectEmit(address(target));
+    emit IERC721.Transfer(owner, other, tokenId);
+
+    target.transferFrom(owner, other, tokenId);
+
+    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InactiveOwnershipDelegation.selector, tokenId));
+
+    target.getOwnershipDelegatee(tokenId);
+  }
+
+  function test_transferFrom_SuccessWhen_DetachingDurationPassed()
+    public
+    setUpContexts(PASSED)
+    asAuthorizedOwnershipManager
+  {
+    for (int256 i = int256(ctxHashes.length) - 1; i >= 0; --i) {
+      (bytes32 ctxHash, address controller) = (ctxHashes[uint256(i)], controllers[uint256(i)]);
+      if (controller != controllerEOA) {
+        vm.expectEmit(controller);
+        emit ControllerMock.OnExecDetachContext(ctxHash, tokenId, address(0), caller, "");
+      }
+    }
+
+    vm.expectEmit(address(target));
+    emit IERC721.Transfer(owner, other, tokenId);
+
+    target.transferFrom(owner, other, tokenId);
+
+    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InactiveOwnershipDelegation.selector, tokenId));
+
+    target.getOwnershipDelegatee(tokenId);
+  }
+
+  function test_transferFrom_RevertWhen_CallerIsUnauthorized() public asUnauthorizedOwnershipManager {
+    if (delegated) {
+      vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, caller, delegatee));
+    } else {
+      vm.expectRevert("ERC721: caller is not token owner or approved");
+    }
+
+    target.transferFrom(owner, other, tokenId);
+  }
+
+  function test_transferFrom_RevertWhen_ContextLockedAndNotRequested()
+    public
+    setUpContexts(NOT_REQUESTED)
+    asAuthorizedOwnershipManager
+  {
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IREP15Errors.REP15NotRequestedForDetachment.selector, ctxHashes[ctxHashes.length - 1], tokenId
+      )
+    );
+
+    target.transferFrom(owner, other, tokenId);
+  }
+
+  function test_transferFrom_RevertWhen_ContextRequestedButWaiting()
+    public
+    setUpContexts(WAITING)
+    asAuthorizedOwnershipManager
+  {
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IREP15Errors.REP15UnreadyForDetachment.selector,
+        ctxHashes[ctxHashes.length - 1],
+        tokenId,
+        uint64(block.timestamp),
+        uint64(block.timestamp + 1)
+      )
+    );
+
+    target.transferFrom(owner, other, tokenId);
+  }
+
+  function test_transferFrom_SuccessWhen_ReentrantAttachIsBlocked() public {
+    uint256 reentrantTokenId = tokenId + 1;
+    address recipient = makeAddr("reentrantRecipient");
+
+    ReentrantControllerMock reentrant = new ReentrantControllerMock(target);
+    target.mint(address(reentrant), reentrantTokenId);
+
+    // C1: attached to the token; detached on transfer, firing onExecDetachContext
+    bytes32 ctxHash = reentrant.createContext(0, "context C1");
+    reentrant.attachCtx(ctxHash, reentrantTokenId);
+
+    // C2 (ghost): the context the controller will try to inject during detachment of C1
+    bytes32 ghostCtxHash = reentrant.createContext(0, "ghost context C2");
+    reentrant.setGhostInject(ghostCtxHash, reentrantTokenId);
+
+    // Transfer succeeds; reentrant attachContext(C2) inside the callback is blocked
+    vm.expectEmit(address(target));
+    emit IERC721.Transfer(address(reentrant), recipient, reentrantTokenId);
+    reentrant.doTransfer(recipient, reentrantTokenId);
+
+    // Ghost context must not be attached — the reentrant injection was blocked
+    vm.prank(address(reentrant));
+    vm.expectRevert(
+      abi.encodeWithSelector(IREP15Errors.REP15NonexistentAttachedContext.selector, ghostCtxHash, reentrantTokenId)
+    );
+    target.setContextLock(ghostCtxHash, reentrantTokenId, false);
+  }
+}

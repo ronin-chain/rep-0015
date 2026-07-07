@@ -5,7 +5,6 @@ import { REP15Test, ControllerMock, console } from "./REP15.t.sol";
 import { IREP15 } from "@ronin/rep-0015/interfaces/IREP15.sol";
 import { IREP15Errors } from "@ronin/rep-0015/interfaces/IREP15Errors.sol";
 import { IREP15ContextCallback } from "@ronin/rep-0015/interfaces/IREP15ContextCallback.sol";
-import { IERC721Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract REP15ContextTest is REP15Test {
   address internal immutable delegatee = makeAddr("delegatee");
@@ -134,7 +133,7 @@ contract REP15ContextTest is REP15Test {
 
     address caller = address(uint160(address(this)) - 1);
 
-    vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InsufficientApproval.selector, caller, tokenId));
+    vm.expectRevert("ERC721: caller is not token owner or approved");
 
     vm.prank(caller);
     target.attachContext(ctxHash, tokenId, "attach data");
@@ -232,7 +231,7 @@ contract REP15ContextTest is REP15Test {
   {
     address caller = address(uint160(address(this)) - 1);
 
-    vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InsufficientApproval.selector, caller, tokenId));
+    vm.expectRevert("ERC721: caller is not token owner or approved");
 
     vm.prank(caller);
     target.requestDetachContext(ctxHash, tokenId, "request detach data");
@@ -266,7 +265,7 @@ contract REP15ContextTest is REP15Test {
   function test_execDetachContext_RevertWhen_CallerIsNotAuthorizedOwnershipManager_Owner() public withContext(PASSED) {
     address caller = address(uint160(address(this)) - 1);
 
-    vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InsufficientApproval.selector, caller, tokenId));
+    vm.expectRevert("ERC721: caller is not token owner or approved");
 
     vm.prank(caller);
     target.execDetachContext(ctxHash, tokenId, "exec detach data");
@@ -404,6 +403,13 @@ contract REP15ContextTest is REP15Test {
     vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InvalidController.selector, address(this)));
 
     target.setContextUser(ctxHash, tokenId, user);
+  }
+
+  function test_setContextUser_RevertWhen_UserIsZeroAddress() public withContext(ATTACHED) {
+    vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InvalidUser.selector, address(0)));
+
+    vm.prank(controller);
+    target.setContextUser(ctxHash, tokenId, address(0));
   }
 
   function test_maxDetachingDuration() public view {

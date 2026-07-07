@@ -1,6 +1,4 @@
-@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
-ds-test/=lib/openzeppelin-contracts/lib/forge-std/lib/ds-test/src/
-erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/
-forge-std/=lib/forge-std/src/
-openzeppelin-contracts/=lib/openzeppelin-contracts/
+@openzeppelin-v4/=dependencies/@openzeppelin-v4-4.9.6/contracts/
+@openzeppelin-upgradeable-v4/=dependencies/@openzeppelin-upgradeable-v4-4.9.6/contracts/
+forge-std/=dependencies/forge-std-1.8.2/src/
 @ronin/rep-0015/=src/

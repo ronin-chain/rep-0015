@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { Test, console } from "forge-std/Test.sol";
 import { REP15 } from "@ronin/rep-0015/REP15.sol";
-import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import { ERC721 } from "@openzeppelin-v4/token/ERC721/ERC721.sol";
 import { ControllerMock } from "@ronin/rep-0015/mocks/ControllerMock.sol";
 
 contract REP15Target is REP15 {

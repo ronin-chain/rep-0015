@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { Test } from "forge-std/Test.sol";
-import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import { ERC721 } from "@openzeppelin-v4/token/ERC721/ERC721.sol";
 import { REP15, REP15Enumerable } from "@ronin/rep-0015/extensions/REP15Enumerable.sol";
 
 contract REP15EnumerableTarget is REP15Enumerable {

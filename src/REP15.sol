@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import { IERC165, ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import { IERC721, ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import { IERC165, ERC165 } from "@openzeppelin-v4/utils/introspection/ERC165.sol";
+import { IERC721, ERC721 } from "@openzeppelin-v4/token/ERC721/ERC721.sol";
 import { IREP15 } from "./interfaces/IREP15.sol";
 import { IREP15Errors } from "./interfaces/IREP15Errors.sol";
 import { IREP15ContextCallback } from "./interfaces/IREP15ContextCallback.sol";
@@ -21,9 +21,12 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
   mapping(uint256 tokenId => mapping(bytes32 ctxHash => REP15Utils.TokenContext)) private _tokenContext;
 
-  mapping(uint256 tokenId => bytes32[] ctxHashes) internal _attachedContexts;
+  mapping(uint256 tokenId => bytes32[] ctxHashes) private _attachedContexts;
 
-  mapping(uint256 tokenId => mapping(bytes32 ctxHash => uint256 index)) internal _attachedContextsIndex;
+  mapping(uint256 tokenId => mapping(bytes32 ctxHash => uint256 index)) private _attachedContextsIndex;
+
+  /// @dev keccak256("axieinfinity.transient.REP15.isDetaching")
+  uint256 private constant $$_IsDetachingTSlot = 0xc036bb99732038fd598687ced0a01c3426beffa0322e6933982f389fc3a04649;
 
   constructor(uint64 maxDetachingDurationSeconds) {
     _MAX_DETACHING_DURATION = maxDetachingDurationSeconds;
@@ -40,7 +43,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @inheritdoc IREP15
    */
   function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) public virtual {
-    address owner = _requireOwned(tokenId);
+    address owner = ownerOf(tokenId);
 
     if (delegatee == owner || delegatee == address(0)) revert REP15InvalidDelegatee(delegatee);
 
@@ -52,7 +55,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
       revert REP15AlreadyDelegatedOwnership(tokenId, $delegation.delegatee, $delegation.until);
     }
 
-    ERC721._checkAuthorized(owner, _msgSender(), tokenId);
+    require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
 
     $delegation.delegatee = delegatee;
     $delegation.until = until;
@@ -121,6 +124,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     address operator = _msgSender();
 
     _checkAuthorizedOwnershipManager(tokenId, operator);
+    if (_isDetaching()) revert REP15DetachingInProgress(ctxHash, tokenId);
 
     _attachContext(ctxHash, tokenId, operator, data);
   }
@@ -155,12 +159,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     _checkAuthorizedOwnershipManager(tokenId, operator);
 
     _detachContext({
-      ctxHash: ctxHash,
-      tokenId: tokenId,
-      operator: operator,
-      data: data,
-      checkReadyForDetachment: true,
-      emitEvent: true
+      ctxHash: ctxHash, tokenId: tokenId, operator: operator, data: data, checkReadyForDetachment: true, emitEvent: true
     });
   }
 
@@ -179,6 +178,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    * @inheritdoc IREP15
    */
   function setContextUser(bytes32 ctxHash, uint256 tokenId, address user) external virtual {
+    if (user == address(0)) revert REP15InvalidUser(address(0));
     _checkAuthorizedController(_msgSender(), ctxHash);
 
     _requireAttachedTokenContext(ctxHash, tokenId, false).user = user;
@@ -233,7 +233,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     if ($delegation.isActive()) return _delegations[tokenId].delegatee;
 
-    return _requireOwned(tokenId);
+    return ownerOf(tokenId);
   }
 
   /**
@@ -281,7 +281,10 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
    *
    * Emits a {ContextUpdated} event.
    */
-  function _updateContext(bytes32 ctxHash, address controller, uint64 detachingDuration, address auth) internal virtual {
+  function _updateContext(bytes32 ctxHash, address controller, uint64 detachingDuration, address auth)
+    internal
+    virtual
+  {
     if (controller == address(0)) revert REP15InvalidController(address(0));
     if (detachingDuration > maxDetachingDuration()) revert REP15ExceededMaxDetachingDuration(detachingDuration);
 
@@ -342,11 +345,18 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     _addAttachedContext(tokenId, ctxHash);
 
     emit ContextAttached(ctxHash, tokenId);
+    _afterAttachContext(ctxHash, tokenId);
 
     if (controller.code.length > 0) {
       IREP15ContextCallback(controller).onAttached(ctxHash, tokenId, operator, data);
     }
   }
+
+  /**
+   * @dev Hook called after a context is attached to a token.
+   * Subclasses may override this to maintain additional enumeration data.
+   */
+  function _afterAttachContext(bytes32 ctxHash, uint256 tokenId) internal virtual { }
 
   /**
    * @dev Requests detachment of a context from a token.
@@ -388,6 +398,10 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     bool checkReadyForDetachment,
     bool emitEvent
   ) internal {
+    if (!_tokenContext[tokenId][ctxHash].attached) {
+      revert REP15NonexistentAttachedContext(ctxHash, tokenId);
+    }
+
     if (checkReadyForDetachment) {
       uint64 readyForDetachmentAt = _tokenContext[tokenId][ctxHash].readyForDetachmentAt;
 
@@ -405,6 +419,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     _removeAttachedContext(tokenId, ctxHash);
 
     if (emitEvent) emit ContextDetached(ctxHash, tokenId);
+    _afterDetachContext(ctxHash, tokenId);
 
     address controller = _contexts[ctxHash].controller;
     if (controller.code.length > 0) {
@@ -414,40 +429,64 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
   }
 
   /**
-   * @dev Overrides the internal `_update` function to revoke ownership delegation and detach all attached contexts
-   * in case of transfers or burns.
-   *
-   * If `auth` is non-zero and this function will check if `auth` is the ownership manager, an authorized operator of
-   * ownership manager, or the approved address for this NFT (if the token is not being delegated).
+   * @dev Hook called after a context is detached from a token.
+   * Subclasses may override this to maintain additional enumeration data.
    */
-  function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
-    if (auth != address(0)) {
-      _checkAuthorizedOwnershipManager(tokenId, auth);
-    }
+  function _afterDetachContext(bytes32 ctxHash, uint256 tokenId) internal virtual { }
 
-    // Revoke ownership delegation and detach all attached contexts if the token is transferred or burned.
-    // If the token is being minted, `auth` will be zero.
-    if (auth != address(0) || to == address(0)) {
-      // Revoke current ownership delegation if any.
-      // No need to check if the delegation is active or emit the OwnershipDelegationStopped event.
-      delete _delegations[tokenId];
+  /**
+   * @dev Overrides `transferFrom` to check against the ownership manager instead of the standard ERC721 approval.
+   */
+  function transferFrom(address from, address to, uint256 tokenId) public virtual override {
+    _checkAuthorizedOwnershipManager(tokenId, _msgSender());
+    _transfer(from, to, tokenId);
+  }
 
-      // Detach all attached contexts. No need to emit the ContextDetached event.
-      bytes32[] storage attachedContexts = _attachedContexts[tokenId];
+  /**
+   * @dev Overrides `safeTransferFrom` to check against the ownership manager instead of the standard ERC721 approval.
+   */
+  function safeTransferFrom(address from, address to, uint256 tokenId) public virtual override {
+    _checkAuthorizedOwnershipManager(tokenId, _msgSender());
+    _safeTransfer(from, to, tokenId, "");
+  }
+
+  /**
+   * @dev Overrides `safeTransferFrom` to check against the ownership manager instead of the standard ERC721 approval.
+   */
+  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
+    _checkAuthorizedOwnershipManager(tokenId, _msgSender());
+    _safeTransfer(from, to, tokenId, data);
+  }
+
+  /**
+   * @dev Revokes ownership delegation and detaches all attached contexts before transfers or burns.
+   * Mints (from == address(0)) are unaffected.
+   */
+  function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize)
+    internal
+    virtual
+    override
+  {
+    super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+
+    if (from != address(0)) {
+      delete _delegations[firstTokenId];
+
+      bytes32[] storage attachedContexts = _attachedContexts[firstTokenId];
+      _setIsDetaching();
       for (int256 i = int256(attachedContexts.length) - 1; i >= 0; --i) {
         bytes32 ctxHash = attachedContexts[uint256(i)];
         _detachContext({
           ctxHash: ctxHash,
-          tokenId: tokenId,
-          operator: auth,
+          tokenId: firstTokenId,
+          operator: _msgSender(),
           data: "",
-          checkReadyForDetachment: _tokenContext[tokenId][ctxHash].locked,
+          checkReadyForDetachment: _tokenContext[firstTokenId][ctxHash].locked,
           emitEvent: false
         });
       }
+      _clearIsDetaching();
     }
-
-    return super._update(to, tokenId, address(0));
   }
 
   /**
@@ -467,7 +506,7 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
     REP15Utils.Delegation storage $delegation = _delegations[tokenId];
 
     if (!$delegation.isActive()) {
-      ERC721._checkAuthorized(_ownerOf(tokenId), operator, tokenId);
+      require(_isApprovedOrOwner(operator, tokenId), "ERC721: caller is not token owner or approved");
       return;
     }
 
@@ -497,5 +536,23 @@ abstract contract REP15 is ERC721, IREP15, IREP15Errors {
 
     attachedContexts.pop();
     delete attachedContextsIndex[ctxHash];
+  }
+
+  function _setIsDetaching() private {
+    assembly ("memory-safe") {
+      tstore($$_IsDetachingTSlot, 1)
+    }
+  }
+
+  function _clearIsDetaching() private {
+    assembly ("memory-safe") {
+      tstore($$_IsDetachingTSlot, 0)
+    }
+  }
+
+  function _isDetaching() private view returns (bool flag) {
+    assembly ("memory-safe") {
+      flag := tload($$_IsDetachingTSlot)
+    }
   }
 }

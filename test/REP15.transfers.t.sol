@@ -3,8 +3,7 @@ pragma solidity ^0.8.26;
 
 import { REP15Test, REP15, ControllerMock } from "./REP15.t.sol";
 import { IREP15Errors } from "@ronin/rep-0015/interfaces/IREP15Errors.sol";
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import { IERC721Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import { IERC721 } from "@openzeppelin-v4/token/ERC721/IERC721.sol";
 
 contract REP15TransfersTest is REP15Test {
   address internal immutable owner = address(this);
@@ -152,7 +151,7 @@ contract REP15TransfersTest is REP15Test {
     if (delegated) {
       vm.expectRevert(abi.encodeWithSelector(IREP15Errors.REP15InsufficientApproval.selector, caller, delegatee));
     } else {
-      vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InsufficientApproval.selector, caller, tokenId));
+      vm.expectRevert("ERC721: caller is not token owner or approved");
     }
 
     target.transferFrom(owner, other, tokenId);
